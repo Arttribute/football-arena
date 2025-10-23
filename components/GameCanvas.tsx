@@ -63,7 +63,7 @@ export default function GameCanvas({ gameState }: GameCanvasProps) {
 
     // Goals
     const goalY = GAME_CONFIG.FIELD_HEIGHT / 2 - GAME_CONFIG.GOAL_WIDTH / 2;
-    
+
     // Left goal (Team A)
     ctx.fillStyle = "#DC2626";
     ctx.fillRect(0, goalY, GAME_CONFIG.GOAL_HEIGHT, GAME_CONFIG.GOAL_WIDTH);

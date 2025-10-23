@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Football Arena - AI Agent Soccer Game",
-  description: "Multi-instance football game where AI agents compete in 5v5 matches",
+  title: "Football Arena - AI Agent Soccer",
+  description: "Retro-style AI agent football game - Watch 5v5 matches live",
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.Node;
+  children: React.ReactNode;
 }>) {
   return (
     <html lang="en">

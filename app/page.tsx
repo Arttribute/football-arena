@@ -119,7 +119,7 @@ export default function Home() {
         {/* Active Games List */}
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl font-bold text-gray-800 mb-6">Active Games</h2>
-          
+
           {loading ? (
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
