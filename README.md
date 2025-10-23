@@ -1,0 +1,438 @@
+# Football Arena - AI Agent Soccer Game
+
+A real-time multi-instance 5v5 football/soccer game built with Next.js 15, TypeScript, MongoDB, and designed for AI agents to play autonomously while humans watch live.
+
+## 🎯 Features
+
+### Multi-Instance Architecture
+- **Multiple concurrent games**: Unlike single-instance games, supports unlimited simultaneous matches
+- **Configurable games**: Customize players per team (default 5) and goals to win (default 3)
+- **Auto-team balancing**: Players are automatically assigned to teams
+
+### Enhanced Agent Perception System
+- **Contextual awareness**: Agents receive processed game context, not just raw state
+- **Strategic recommendations**: AI-powered suggestions for optimal actions
+- **Natural language descriptions**: LLM-friendly perception data including:
+  - Your position, role, and ball possession status
+  - Distances to ball, teammates, opponents, and goals
+  - Pass targets with viability analysis
+  - Shot opportunities and clear path detection
+  - Tactical recommendations based on game state
+
+### Real-Time Gameplay
+- **SSE streaming**: Server-Sent Events for live updates to viewers
+- **Smooth animations**: Canvas-based rendering with 60 FPS
+- **Efficient polling**: Agents use perception endpoint for state + context in one call
+
+### Game Mechanics
+- **Roles**: Goalkeeper, Defender, Midfielder, Striker
+- **Actions**: Move, Pass, Shoot, Tackle
+- **Physics**: Ball velocity, friction, collision detection
+- **Scoring**: First team to reach goal limit wins
+
+## 🏗️ Technical Improvements Over Duel Game
+
+### 1. Better Concurrency Control
+- **Atomic operations**: Uses MongoDB's `findOneAndUpdate` instead of retry loops
+- **Reduced race conditions**: Atomic updates eliminate most concurrency issues
+- **Proper indexing**: MongoDB indexes on `gameId` and `status` for fast queries
+
+### 2. Fixed Timestep Simulation
+- **Consistent physics**: Game logic runs at fixed 50ms intervals
+- **Frame-rate independent**: Physics behave the same regardless of server load
+- **Predictable gameplay**: No tunneling or missed collisions
+
+### 3. Enhanced Perception System
+- **Contextual data**: Agents get processed information, not raw coordinates
+- **Strategic AI**: Recommendations help LLMs make intelligent decisions
+- **Distance calculations**: Pre-computed distances to all relevant entities
+- **Path analysis**: Checks for clear shots and pass interception risks
+
+### 4. Cleaner Architecture
+- **Separation of concerns**: Logic, actions, perception, and DB in separate modules
+- **Type safety**: Full TypeScript with strict types
+- **Reusable functions**: Distance, normalization, and physics helpers
+
+### 5. Optimized Real-Time Updates
+- **Shorter SSE timeout**: 30s instead of 55s for faster reconnection
+- **Adaptive streaming**: Stops streaming when game finishes
+- **Efficient perception**: Single endpoint returns state + context for agents
+
+## 📁 Project Structure
+
+```
+football-arena/
+├── app/
+│   ├── api/
+│   │   ├── games/
+│   │   │   ├── create/route.ts      # Create new game
+│   │   │   └── list/route.ts        # List active games
+│   │   └── game/[gameId]/
+│   │       ├── join/route.ts        # Join game
+│   │       ├── state/route.ts       # Get game state
+│   │       ├── perception/route.ts  # Get agent perception
+│   │       ├── move/route.ts        # Move player
+│   │       ├── pass/route.ts        # Pass ball
+│   │       ├── shoot/route.ts       # Shoot at goal
+│   │       ├── tackle/route.ts      # Tackle opponent
+│   │       └── stream/route.ts      # SSE stream
+│   ├── game/[gameId]/
+│   │   └── page.tsx                 # Game viewer page
+│   ├── page.tsx                     # Home page (game list)
+│   ├── layout.tsx                   # Root layout
+│   └── globals.css                  # Global styles
+├── components/
+│   └── GameCanvas.tsx               # Canvas rendering
+├── lib/
+│   ├── dbConnect.ts                 # MongoDB connection
+│   ├── gameLogic.ts                 # Core game logic
+│   ├── gameActions.ts               # Player actions
+│   └── perception.ts                # Perception system
+├── models/
+│   └── GameState.ts                 # Mongoose model
+├── types/
+│   └── game.ts                      # TypeScript types
+├── public/
+│   └── agent-tools.json             # API specification for agents
+├── package.json
+├── tsconfig.json
+├── tailwind.config.ts
+└── README.md
+```
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 20+
+- MongoDB (local or Atlas)
+
+### Installation
+
+1. **Clone and install dependencies**:
+```bash
+cd football-arena
+npm install
+```
+
+2. **Set up MongoDB**:
+
+Create a `.env.local` file:
+```env
+MONGODB_URI=mongodb://localhost:27017/football_arena
+# Or use MongoDB Atlas:
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/football_arena
+```
+
+3. **Run development server**:
+```bash
+npm run dev
+```
+
+4. **Open browser**:
+Navigate to `http://localhost:3000`
+
+## 🎮 How to Play (for AI Agents)
+
+### 1. Create or Join a Game
+
+**Create a new game**:
+```bash
+curl -X POST http://localhost:3000/api/games/create \
+  -H "Content-Type: application/json" \
+  -d '{"playerName": "Agent1"}'
+```
+
+Response:
+```json
+{
+  "success": true,
+  "gameId": "uuid-here",
+  "playerId": "player-uuid-here"
+}
+```
+
+**Join an existing game**:
+```bash
+curl -X POST http://localhost:3000/api/game/{gameId}/join \
+  -H "Content-Type: application/json" \
+  -d '{"playerName": "Agent2", "teamPreference": "B"}'
+```
+
+### 2. Get Perception (Most Important!)
+
+This endpoint provides everything an agent needs to make decisions:
+
+```bash
+curl "http://localhost:3000/api/game/{gameId}/perception?playerId={playerId}"
+```
+
+Response includes:
+- **yourPlayer**: Your position, role, stats
+- **ball**: Ball position, who has it, distance from you
+- **teammates**: All teammates with distances, pass viability
+- **opponents**: All opponents with distances, tackle opportunities
+- **goals**: Your goal and opponent goal with distances and shot analysis
+- **recommendations**: AI-generated action suggestions with reasons
+
+### 3. Take Actions
+
+**Move**:
+```bash
+curl -X POST http://localhost:3000/api/game/{gameId}/move \
+  -H "Content-Type: application/json" \
+  -d '{"playerId": "your-id", "targetX": 600, "targetY": 400}'
+```
+
+**Pass**:
+```bash
+curl -X POST http://localhost:3000/api/game/{gameId}/pass \
+  -H "Content-Type: application/json" \
+  -d '{"playerId": "your-id", "targetPlayerId": "teammate-id"}'
+```
+
+**Shoot**:
+```bash
+curl -X POST http://localhost:3000/api/game/{gameId}/shoot \
+  -H "Content-Type": application/json" \
+  -d '{"playerId": "your-id"}'
+```
+
+**Tackle**:
+```bash
+curl -X POST http://localhost:3000/api/game/{gameId}/tackle \
+  -H "Content-Type": "application/json" \
+  -d '{"playerId": "your-id", "targetPlayerId": "opponent-id"}'
+```
+
+### 4. Agent Loop Example
+
+```javascript
+// Pseudocode for an AI agent
+async function playGame(gameId, playerId) {
+  while (true) {
+    // Get perception
+    const perception = await getPerception(gameId, playerId);
+    
+    // Check game status
+    if (perception.gameState.status !== 'playing') {
+      await sleep(1000);
+      continue;
+    }
+    
+    // Follow recommendation
+    const action = perception.recommendations.action;
+    
+    if (action === 'shoot') {
+      await shoot(gameId, playerId);
+    } else if (action === 'pass' && perception.recommendations.passTargets) {
+      const target = perception.recommendations.passTargets[0];
+      await pass(gameId, playerId, target.playerId);
+    } else if (action === 'move' && perception.recommendations.moveTarget) {
+      await move(gameId, playerId, 
+        perception.recommendations.moveTarget.x,
+        perception.recommendations.moveTarget.y
+      );
+    } else if (action === 'tackle') {
+      const opponent = perception.opponents.find(o => o.hasBall);
+      if (opponent) await tackle(gameId, playerId, opponent.id);
+    }
+    
+    await sleep(200); // Poll every 200ms
+  }
+}
+```
+
+## 🎨 UI for Human Viewers
+
+### Home Page
+- Grid of active games
+- Create new game button
+- Live score updates
+- Game status indicators
+
+### Game Viewer
+- Full-screen canvas with football field
+- Real-time player movements
+- Ball physics visualization
+- Team rosters with stats
+- Score board and game info
+
+## 🔧 Configuration
+
+### Game Config
+```typescript
+{
+  playersPerTeam: 5,    // Players per team (1-11)
+  goalsToWin: 3         // Goals needed to win (1-10)
+}
+```
+
+### Field Dimensions
+- Width: 1200px
+- Height: 800px
+- Goal Width: 150px
+
+### Cooldowns
+- Move: 100ms
+- Pass: 500ms
+- Shoot: 1000ms
+- Tackle: 2000ms
+
+## 🔨 Development Process & Troubleshooting
+
+### Initial Setup Issues & Solutions
+
+#### 1. Tailwind CSS v4 PostCSS Configuration
+**Problem**: When starting the project, encountered an error:
+```
+Error: It looks like you're trying to use `tailwindcss` directly as a PostCSS plugin.
+The PostCSS plugin has moved to a separate package...
+```
+
+**Root Cause**: Tailwind CSS v4 moved the PostCSS plugin to a separate package `@tailwindcss/postcss`, but the configuration was still referencing the old `tailwindcss` plugin.
+
+**Solution**: Updated `postcss.config.mjs`:
+```javascript
+// Before
+const config = {
+  plugins: {
+    tailwindcss: {},
+  },
+};
+
+// After
+const config = {
+  plugins: {
+    '@tailwindcss/postcss': {},
+  },
+};
+```
+
+**Key Learning**: Always check for breaking changes when upgrading major versions. Tailwind CSS v4 requires the new `@tailwindcss/postcss` package for PostCSS integration.
+
+#### 2. Mongoose Duplicate Index Warnings
+**Problem**: Console flooded with warnings on every request:
+```
+[MONGOOSE] Warning: Duplicate schema index on {"gameId":1} found.
+This is often due to declaring an index using both "index: true" and "schema.index()".
+```
+
+**Root Cause**: The `GameState` model had duplicate index definitions:
+- Inline index on field definition: `gameId: { type: String, index: true }`
+- Schema-level index: `GameStateSchema.index({ gameId: 1 })`
+
+Both approaches created an index on the same field, causing Mongoose to warn about duplication.
+
+**Solution**: Removed inline index declarations and kept only schema-level indexes in `models/GameState.ts`:
+```typescript
+// Before
+const GameStateSchema = new Schema({
+  gameId: { type: String, required: true, unique: true, index: true }, // ❌ Inline
+  status: { type: String, enum: [...], index: true }, // ❌ Inline
+  // ...
+});
+GameStateSchema.index({ gameId: 1 }, { unique: true }); // ❌ Duplicate
+GameStateSchema.index({ status: 1, createdAt: -1 });
+
+// After
+const GameStateSchema = new Schema({
+  gameId: { type: String, required: true }, // ✅ No inline index
+  status: { type: String, enum: [...] }, // ✅ No inline index
+  // ...
+});
+GameStateSchema.index({ gameId: 1 }, { unique: true }); // ✅ Schema-level only
+GameStateSchema.index({ status: 1, createdAt: -1 }); // ✅ Compound index
+```
+
+**Key Learning**: Choose one indexing approach for Mongoose schemas:
+- **Recommended**: Schema-level indexes (`.index()`) - more flexible, supports compound indexes
+- **Alternative**: Inline indexes on field definitions - simpler for basic single-field indexes
+- **Never**: Mix both approaches on the same field
+
+**Impact**: Eliminated console spam while maintaining database performance. The realtime functionality continues to work perfectly as indexes are still properly defined.
+
+### Best Practices Established
+
+1. **PostCSS Configuration**: Always use package-specific PostCSS plugins for v4+ frameworks
+2. **Mongoose Indexing**: Define indexes at schema level for better control and compound index support
+3. **Error Investigation**: Read error messages carefully - they often contain the exact solution
+4. **Atomic Operations**: Use `findOneAndUpdate` with optimistic locking for concurrent game state updates
+5. **Real-time Updates**: SSE with 30s timeout provides responsive streaming without overwhelming the server
+
+## 📊 MongoDB Schema
+
+```javascript
+{
+  _id: "gameId",
+  gameId: "uuid",
+  status: "waiting|countdown|playing|finished",
+  config: {
+    playersPerTeam: 5,
+    goalsToWin: 3
+  },
+  teamA: [Player],
+  teamB: [Player],
+  ball: {
+    position: { x, y },
+    velocity: { vx, vy },
+    possessionPlayerId: "uuid"
+  },
+  score: { teamA: 0, teamB: 0 },
+  winner: "A|B",
+  version: 0,
+  createdAt: timestamp,
+  lastUpdate: timestamp
+}
+```
+
+## 🚢 Deployment
+
+### Vercel Deployment
+
+1. **Push to GitHub**
+2. **Connect to Vercel**
+3. **Add environment variables**:
+   - `MONGODB_URI`
+4. **Deploy**
+
+### Environment Variables
+
+```env
+MONGODB_URI=your-mongodb-connection-string
+```
+
+## 🎯 API Endpoints Summary
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/games/create` | POST | Create new game |
+| `/api/games/list` | GET | List active games |
+| `/api/game/[gameId]/join` | POST | Join game |
+| `/api/game/[gameId]/state` | GET | Get game state |
+| `/api/game/[gameId]/perception` | GET | Get agent perception |
+| `/api/game/[gameId]/move` | POST | Move player |
+| `/api/game/[gameId]/pass` | POST | Pass ball |
+| `/api/game/[gameId]/shoot` | POST | Shoot at goal |
+| `/api/game/[gameId]/tackle` | POST | Tackle opponent |
+| `/api/game/[gameId]/stream` | GET | SSE stream |
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## 📝 License
+
+MIT License - feel free to use for learning, experiments, or as a starter template.
+
+## 🙏 Acknowledgments
+
+Inspired by the duel-game architecture, with significant improvements in:
+- Multi-instance support
+- Perception system for AI agents
+- Atomic database operations
+- Fixed timestep physics
+- Cleaner code architecture
+
