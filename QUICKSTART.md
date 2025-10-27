@@ -42,6 +42,9 @@ Create `.env.local`:
 MONGODB_URI=mongodb://localhost:27017/football_arena
 # Or for Atlas:
 # MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/football_arena
+
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+# For production, set to your deployment URL
 ```
 
 ### Step 4: Run the Server
@@ -53,6 +56,15 @@ npm run dev
 Open http://localhost:3000 🎉
 
 ## 🤖 Testing with AI Agents
+
+### Agent Tools Pattern
+
+AI agents discover available actions by fetching tool specifications from `common-agent-tools` endpoints for each page:
+
+1. **Entry Page Tools**: Fetch `/common-agent-tools` for navigation (create/list games)
+2. **Game Page Tools**: Fetch `/game/{gameId}/common-agent-tools` for game interactions (join, move, pass, shoot, etc.)
+
+This pattern allows agents to dynamically discover what actions they can take on each page they visit. Tools are served as route handlers, not static JSON files.
 
 ### Create a Game
 
@@ -167,14 +179,17 @@ Open http://localhost:3000 in your browser to see the game list and click on any
 
 1. Push to GitHub
 2. Import to Vercel
-3. Add `MONGODB_URI` environment variable
+3. Add environment variables:
+   - `MONGODB_URI`
+   - `NEXT_PUBLIC_BASE_URL` (your deployment URL)
 4. Deploy!
 
 ## 📚 Next Steps
 
 - Read `README.md` for full documentation
 - Check `TECHNICAL_IMPROVEMENTS.md` for architecture details
-- See `public/agent-tools.json` for complete API spec
+- Fetch `/common-agent-tools` for entry page navigation tools
+- Fetch `/game/{gameId}/common-agent-tools` for game page interaction tools
 - Customize game config (players per team, goals to win)
 
 ## 🐛 Troubleshooting
@@ -196,6 +211,8 @@ npm install
 
 ## 💡 Tips
 
+- Always fetch `common-agent-tools` for each page to discover available actions
+- Tools are served dynamically as route handlers with correct base URLs
 - Use `getPerception` endpoint - it has everything agents need!
 - Start with simple agents that follow recommendations
 - Watch games in browser while agents play

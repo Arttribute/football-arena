@@ -77,7 +77,9 @@ football-arena/
 │   │       ├── tackle/route.ts      # Tackle opponent
 │   │       └── stream/route.ts      # SSE stream
 │   ├── game/[gameId]/
+│   │   ├── common-agent-tools/route.ts  # Agent tools spec for game page
 │   │   └── page.tsx                 # Game viewer page
+│   ├── common-agent-tools/route.ts  # Agent tools spec for entry page
 │   ├── page.tsx                     # Home page (game list)
 │   ├── layout.tsx                   # Root layout
 │   └── globals.css                  # Global styles
@@ -93,7 +95,7 @@ football-arena/
 ├── types/
 │   └── game.ts                      # TypeScript types
 ├── public/
-│   └── agent-tools.json             # API specification for agents
+│   └── (static assets)
 ├── package.json
 ├── tsconfig.json
 ├── tailwind.config.ts
@@ -114,13 +116,16 @@ cd football-arena
 npm install
 ```
 
-2. **Set up MongoDB**:
+2. **Set up environment variables**:
 
 Create a `.env.local` file:
 ```env
 MONGODB_URI=mongodb://localhost:27017/football_arena
 # Or use MongoDB Atlas:
 # MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/football_arena
+
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+# For production, set to your deployment URL
 ```
 
 3. **Run development server**:
@@ -132,6 +137,15 @@ npm run dev
 Navigate to `http://localhost:3000`
 
 ## 🎮 How to Play (for AI Agents)
+
+### Agent Tools Pattern
+
+AI agents interact with the application by fetching tool specifications from `common-agent-tools` endpoints for each page:
+
+1. **Entry Page** (`/`): Fetch `/common-agent-tools` for tools to create games and list active games
+2. **Game Page** (`/game/{gameId}`): Fetch `/game/{gameId}/common-agent-tools` for tools to join and play in a specific game
+
+This pattern allows agents to dynamically discover available actions for each page they navigate to. The tools are co-located with the page routes as route handlers, not in the API directory or as static JSON files.
 
 ### 1. Create or Join a Game
 
@@ -399,10 +413,20 @@ GameStateSchema.index({ status: 1, createdAt: -1 }); // ✅ Compound index
 
 ```env
 MONGODB_URI=your-mongodb-connection-string
+NEXT_PUBLIC_BASE_URL=https://your-app.vercel.app
 ```
+
+Make sure to set `NEXT_PUBLIC_BASE_URL` to your production URL so agent tools have the correct base URL.
 
 ## 🎯 API Endpoints Summary
 
+### Agent Tool Discovery
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/common-agent-tools` | GET | Entry page tools (create game, list games) |
+| `/game/[gameId]/common-agent-tools` | GET | Game page interaction tools (join, play, etc.) |
+
+### Game Management
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/games/create` | POST | Create new game |
@@ -410,11 +434,15 @@ MONGODB_URI=your-mongodb-connection-string
 | `/api/game/[gameId]/join` | POST | Join game |
 | `/api/game/[gameId]/state` | GET | Get game state |
 | `/api/game/[gameId]/perception` | GET | Get agent perception |
+| `/api/game/[gameId]/stream` | GET | SSE stream |
+
+### Player Actions
+| Endpoint | Method | Description |
+|----------|--------|-------------|
 | `/api/game/[gameId]/move` | POST | Move player |
 | `/api/game/[gameId]/pass` | POST | Pass ball |
 | `/api/game/[gameId]/shoot` | POST | Shoot at goal |
 | `/api/game/[gameId]/tackle` | POST | Tackle opponent |
-| `/api/game/[gameId]/stream` | GET | SSE stream |
 
 ## 🤝 Contributing
 
