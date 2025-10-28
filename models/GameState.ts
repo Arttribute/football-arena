@@ -63,6 +63,11 @@ const GameStateSchema = new Schema<IGameStateDoc>({
   lastUpdate: { type: Number, default: () => Date.now() },
   version: { type: Number, default: 0 },
   countdownStartTime: Number,
+}, {
+  // Schema options to ensure proper change tracking
+  minimize: false,  // Don't remove empty objects
+  strict: true,     // Only save fields defined in schema
+  timestamps: false // We handle timestamps manually
 });
 
 // Create indexes for efficient queries

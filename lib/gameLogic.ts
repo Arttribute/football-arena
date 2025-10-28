@@ -337,8 +337,12 @@ export async function getGameState(gameId: string): Promise<GameState | null> {
   if (!game) return null;
 
   const now = Date.now();
-  simulate(game, now);
-  await game.save();
+  const changed = simulate(game, now);
+
+  if (changed || game.isModified()) {
+    await game.save();
+    console.log(`Game ${gameId} state saved, version: ${game.version}, changed: ${changed}, modified paths: ${game.modifiedPaths()}`);
+  }
 
   return sanitizeGameState(game);
 }

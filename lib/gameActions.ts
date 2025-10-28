@@ -60,7 +60,17 @@ export async function movePlayer(
     game.lastUpdate = now;
 
     await game.save();
-    return { success: true };
+
+    console.log(`Player ${playerId} moved to (${player.position.x}, ${player.position.y})`);
+
+    return {
+      success: true,
+      position: {
+        x: player.position.x,
+        y: player.position.y
+      },
+      message: `Moved to (${Math.round(player.position.x)}, ${Math.round(player.position.y)})`
+    };
   }
 
   return { success: false, message: "Already at target position" };
@@ -129,7 +139,14 @@ export async function passBall(
   game.lastUpdate = now;
 
   await game.save();
-  return { success: true };
+
+  console.log(`Player ${playerId} passed to ${targetPlayerId}`);
+
+  return {
+    success: true,
+    message: `Passed to ${targetPlayer.name}`,
+    ballVelocity: game.ball.velocity
+  };
 }
 
 /**
@@ -190,7 +207,14 @@ export async function shoot(
   game.lastUpdate = now;
 
   await game.save();
-  return { success: true };
+
+  console.log(`Player ${playerId} shot towards goal`);
+
+  return {
+    success: true,
+    message: `Shot towards goal!`,
+    ballVelocity: game.ball.velocity
+  };
 }
 
 /**
@@ -264,6 +288,14 @@ export async function tackle(
   game.lastUpdate = now;
 
   await game.save();
-  return { success: true, message: success ? "Tackle successful!" : "Tackle failed" };
+
+  console.log(`Player ${playerId} tackle ${success ? 'successful' : 'failed'} on ${targetPlayerId}`);
+
+  return {
+    success: true,
+    tackleSuccess: success,
+    message: success ? "Tackle successful!" : "Tackle failed",
+    ballIsFree: success
+  };
 }
 
