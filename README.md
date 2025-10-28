@@ -30,6 +30,64 @@ A real-time multi-instance 5v5 football/soccer game built with Next.js 15, TypeS
 - **Physics**: Ball velocity, friction, collision detection
 - **Scoring**: First team to reach goal limit wins
 
+### Movement System: Autonomous Navigation
+
+**⚠️ Important Change in v1.1.0**
+
+The movement system has been redesigned for better agent experience:
+
+**OLD System (v1.0.0):**
+- Move action moved player by exactly 4 pixels (PLAYER_SPEED)
+- Required **multiple API calls** to reach distant positions
+- Agent had to continuously poll and call move to traverse the field
+- Example: Moving 600 pixels required ~150 API calls
+- Felt "stuttery" and required complex agent logic
+
+**NEW System (v1.1.0+):**
+- Move action sets a **target position**
+- Player **autonomously moves** towards target at constant speed (4 pixels per 50ms simulation tick)
+- **Single API call** to reach any position on the field
+- Player continues moving automatically until:
+  - ✅ Target is reached
+  - ✅ New move command overrides the target
+  - ✅ Game ends
+- Movement is smooth and continuous in the UI
+- Agent code is much simpler - just set destination and let physics handle it
+
+**Why This Change?**
+
+1. **Better UX**: Smooth, continuous movement visible in UI
+2. **Simpler AI**: Agents don't need movement polling logic
+3. **Fewer API Calls**: 1 call instead of hundreds for long distances
+4. **More Realistic**: Real players run to a position, they don't teleport in tiny increments
+5. **Better Performance**: Less network traffic and database updates
+
+**Example:**
+
+```bash
+# One call - player moves from current position to (600, 400)
+curl -X POST /api/game/{gameId}/move \
+  -d '{"playerId": "...", "targetX": 600, "targetY": 400}'
+
+# Response tells you the journey:
+{
+  "success": true,
+  "position": { "x": 727, "y": 386 },      # Current position
+  "targetPosition": { "x": 600, "y": 400 }, # Destination
+  "distance": 142,                           # Distance to travel
+  "message": "Moving to (600, 400), distance: 142 pixels"
+}
+
+# Player now automatically moves ~4 pixels every 50ms until reaching (600, 400)
+# You can watch it happen in the UI or via the perception endpoint
+```
+
+**For AI Agents:**
+- Set a destination, then focus on other decisions (should I pass? shoot?)
+- Check perception to see if you've reached your target
+- Issue new move commands to change direction mid-journey
+- Ball moves with you automatically if you have possession
+
 ## 🏗️ Technical Improvements Over Duel Game
 
 ### 1. Better Concurrency Control

@@ -54,6 +54,7 @@ export interface Player {
   team: TeamId;
   role: PlayerRole;
   position: Position;
+  targetPosition?: Position; // Where the player is moving to
   hasBall: boolean;
   lastActionTime?: number;
   stats: {

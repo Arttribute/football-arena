@@ -11,7 +11,7 @@ export async function movePlayer(
   playerId: string,
   targetX: number,
   targetY: number
-): Promise<{ success: boolean; message?: string; position?: Position }> {
+): Promise<{ success: boolean; message?: string; position?: Position; targetPosition?: Position; distance?: number }> {
   await dbConnect();
 
   const game = await GameStateModel.findOne({ gameId });
@@ -30,50 +30,51 @@ export async function movePlayer(
     return { success: false, message: "Move cooldown active" };
   }
 
-  // Move towards target (limited by player speed)
-  const dx = targetX - player.position.x;
-  const dy = targetY - player.position.y;
+  // Validate target position is within field bounds
+  const clampedX = Math.max(GAME_CONFIG.PLAYER_RADIUS, Math.min(GAME_CONFIG.FIELD_WIDTH - GAME_CONFIG.PLAYER_RADIUS, targetX));
+  const clampedY = Math.max(GAME_CONFIG.PLAYER_RADIUS, Math.min(GAME_CONFIG.FIELD_HEIGHT - GAME_CONFIG.PLAYER_RADIUS, targetY));
+
+  // Calculate distance to target
+  const dx = clampedX - player.position.x;
+  const dy = clampedY - player.position.y;
   const dist = Math.sqrt(dx * dx + dy * dy);
 
-  if (dist > 0) {
-    const moveAmount = Math.min(GAME_CONFIG.PLAYER_SPEED, dist);
-    player.position.x += (dx / dist) * moveAmount;
-    player.position.y += (dy / dist) * moveAmount;
-
-    // Keep player in bounds
-    player.position.x = Math.max(GAME_CONFIG.PLAYER_RADIUS, Math.min(GAME_CONFIG.FIELD_WIDTH - GAME_CONFIG.PLAYER_RADIUS, player.position.x));
-    player.position.y = Math.max(GAME_CONFIG.PLAYER_RADIUS, Math.min(GAME_CONFIG.FIELD_HEIGHT - GAME_CONFIG.PLAYER_RADIUS, player.position.y));
-
-    // If player has ball, ball moves with them
-    if (player.hasBall && game.ball.possessionPlayerId === playerId) {
-      game.ball.position = { ...player.position };
-      game.markModified('ball.position');
-    }
-
-    player.lastActionTime = now;
-
-    // Mark nested objects as modified for Mongoose
-    game.markModified('teamA');
-    game.markModified('teamB');
-
-    game.version++;
-    game.lastUpdate = now;
-
-    await game.save();
-
-    console.log(`Player ${playerId} moved to (${player.position.x}, ${player.position.y})`);
-
-    return {
-      success: true,
-      position: {
-        x: player.position.x,
-        y: player.position.y
-      },
-      message: `Moved to (${Math.round(player.position.x)}, ${Math.round(player.position.y)})`
-    };
+  if (dist < 1) {
+    return { success: false, message: "Already at target position" };
   }
 
-  return { success: false, message: "Already at target position" };
+  // Set the target position - player will move towards it in simulation
+  player.targetPosition = {
+    x: clampedX,
+    y: clampedY
+  };
+
+  player.lastActionTime = now;
+
+  // Mark nested objects as modified for Mongoose
+  game.markModified('teamA');
+  game.markModified('teamB');
+
+  game.version++;
+  game.lastUpdate = now;
+
+  await game.save();
+
+  console.log(`Player ${playerId} target set to (${clampedX}, ${clampedY}), distance: ${Math.round(dist)}`);
+
+  return {
+    success: true,
+    position: {
+      x: player.position.x,
+      y: player.position.y
+    },
+    targetPosition: {
+      x: clampedX,
+      y: clampedY
+    },
+    distance: Math.round(dist),
+    message: `Moving to (${Math.round(clampedX)}, ${Math.round(clampedY)}), distance: ${Math.round(dist)} pixels`
+  };
 }
 
 /**

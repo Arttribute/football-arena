@@ -14,6 +14,10 @@ const PlayerSchema = new Schema({
     x: Number,
     y: Number,
   },
+  targetPosition: {
+    x: Number,
+    y: Number,
+  },
   hasBall: Boolean,
   lastActionTime: Number,
   stats: {

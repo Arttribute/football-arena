@@ -42,6 +42,43 @@ export function simulate(state: IGameStateDoc, now: number): boolean {
   }
 
   if (state.status === "playing") {
+    // Move players towards their target positions
+    const allPlayers = [...state.teamA, ...state.teamB];
+    for (const player of allPlayers) {
+      if (player.targetPosition) {
+        const dx = player.targetPosition.x - player.position.x;
+        const dy = player.targetPosition.y - player.position.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist > 0.5) {
+          // Move towards target at constant speed
+          const moveAmount = Math.min(GAME_CONFIG.PLAYER_SPEED, dist);
+          player.position.x += (dx / dist) * moveAmount;
+          player.position.y += (dy / dist) * moveAmount;
+
+          // Keep player in bounds
+          player.position.x = Math.max(GAME_CONFIG.PLAYER_RADIUS, Math.min(GAME_CONFIG.FIELD_WIDTH - GAME_CONFIG.PLAYER_RADIUS, player.position.x));
+          player.position.y = Math.max(GAME_CONFIG.PLAYER_RADIUS, Math.min(GAME_CONFIG.FIELD_HEIGHT - GAME_CONFIG.PLAYER_RADIUS, player.position.y));
+
+          // If player has ball, ball moves with them
+          if (player.hasBall && state.ball.possessionPlayerId === player.id) {
+            state.ball.position = { ...player.position };
+            state.markModified('ball.position');
+          }
+
+          state.markModified('teamA');
+          state.markModified('teamB');
+          stateChanged = true;
+        } else {
+          // Reached target - clear it
+          player.targetPosition = undefined;
+          state.markModified('teamA');
+          state.markModified('teamB');
+          stateChanged = true;
+        }
+      }
+    }
+
     // Update ball physics
     if (!state.ball.possessionPlayerId) {
       // Ball is free - apply velocity and friction

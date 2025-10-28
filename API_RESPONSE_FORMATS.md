@@ -10,6 +10,8 @@ All action endpoints now return detailed information about what happened, not ju
 
 **Endpoint**: `POST /api/game/{gameId}/move`
 
+**Behavior**: Sets target position for autonomous movement. Player will automatically move towards target at constant speed (4 pixels per 50ms) until reaching destination or receiving new move command.
+
 **Request Body**:
 ```json
 {
@@ -24,10 +26,15 @@ All action endpoints now return detailed information about what happened, not ju
 {
   "success": true,
   "position": {
-    "x": 604,
+    "x": 727,
+    "y": 386
+  },
+  "targetPosition": {
+    "x": 600,
     "y": 400
   },
-  "message": "Moved to (604, 400)"
+  "distance": 142,
+  "message": "Moving to (600, 400), distance: 142 pixels"
 }
 ```
 
@@ -40,9 +47,16 @@ All action endpoints now return detailed information about what happened, not ju
 ```
 
 **Notes**:
-- Position shows the actual new position (may differ slightly from target due to speed limits)
-- Movement is limited by `PLAYER_SPEED` (4 pixels per step by default)
-- Cooldown: 100ms between moves
+- `position`: Current position when command was received
+- `targetPosition`: Destination player will autonomously move towards
+- `distance`: Total distance to travel (in pixels)
+- Player moves at `PLAYER_SPEED` (4 pixels) per simulation tick (50ms)
+- Approximately 80 pixels per second
+- Player continues moving automatically - no need to call move repeatedly
+- New move commands override previous target
+- Target is clamped to field bounds automatically
+- Cooldown: 100ms between move commands
+- Player stops when within 0.5 pixels of target
 
 ---
 
