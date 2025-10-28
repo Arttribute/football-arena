@@ -150,3 +150,46 @@ const gameState = { ... }; // Let TypeScript infer, Mongoose will handle it
 ✅ No runtime errors
 ✅ Dev server starts without issues
 ✅ All game actions work correctly
+
+## Enhanced API Responses
+
+All action endpoints now return detailed information instead of just `{"success": true}`:
+
+### Move Action
+```json
+{
+  "success": true,
+  "position": { "x": 604, "y": 400 },
+  "message": "Moved to (604, 400)"
+}
+```
+
+### Pass Action
+```json
+{
+  "success": true,
+  "message": "Passed to PlayerName",
+  "ballVelocity": { "vx": 4.2, "vy": 1.8 }
+}
+```
+
+### Shoot Action
+```json
+{
+  "success": true,
+  "message": "Shot towards goal!",
+  "ballVelocity": { "vx": 8.5, "vy": 0.2 }
+}
+```
+
+### Tackle Action
+```json
+{
+  "success": true,
+  "tackleSuccess": true,
+  "message": "Tackle successful!",
+  "ballIsFree": true
+}
+```
+
+See `API_RESPONSE_FORMATS.md` for complete documentation of all response formats.

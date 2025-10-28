@@ -11,7 +11,7 @@ export async function movePlayer(
   playerId: string,
   targetX: number,
   targetY: number
-): Promise<{ success: boolean; message?: string }> {
+): Promise<{ success: boolean; message?: string; position?: Position }> {
   await dbConnect();
 
   const game = await GameStateModel.findOne({ gameId });
@@ -83,7 +83,7 @@ export async function passBall(
   gameId: string,
   playerId: string,
   targetPlayerId: string
-): Promise<{ success: boolean; message?: string }> {
+): Promise<{ success: boolean; message?: string; ballVelocity?: { vx: number; vy: number } }> {
   await dbConnect();
 
   const game = await GameStateModel.findOne({ gameId });
@@ -155,7 +155,7 @@ export async function passBall(
 export async function shoot(
   gameId: string,
   playerId: string
-): Promise<{ success: boolean; message?: string }> {
+): Promise<{ success: boolean; message?: string; ballVelocity?: { vx: number; vy: number } }> {
   await dbConnect();
 
   const game = await GameStateModel.findOne({ gameId });
@@ -224,7 +224,7 @@ export async function tackle(
   gameId: string,
   playerId: string,
   targetPlayerId: string
-): Promise<{ success: boolean; message?: string }> {
+): Promise<{ success: boolean; message?: string; tackleSuccess?: boolean; ballIsFree?: boolean }> {
   await dbConnect();
 
   const game = await GameStateModel.findOne({ gameId });

@@ -197,6 +197,15 @@ curl -X POST http://localhost:3000/api/game/{gameId}/move \
   -d '{"playerId": "your-id", "targetX": 600, "targetY": 400}'
 ```
 
+Response:
+```json
+{
+  "success": true,
+  "position": { "x": 604, "y": 400 },
+  "message": "Moved to (604, 400)"
+}
+```
+
 **Pass**:
 ```bash
 curl -X POST http://localhost:3000/api/game/{gameId}/pass \
@@ -204,11 +213,29 @@ curl -X POST http://localhost:3000/api/game/{gameId}/pass \
   -d '{"playerId": "your-id", "targetPlayerId": "teammate-id"}'
 ```
 
+Response:
+```json
+{
+  "success": true,
+  "message": "Passed to PlayerName",
+  "ballVelocity": { "vx": 4.2, "vy": 1.8 }
+}
+```
+
 **Shoot**:
 ```bash
 curl -X POST http://localhost:3000/api/game/{gameId}/shoot \
-  -H "Content-Type": application/json" \
+  -H "Content-Type": "application/json" \
   -d '{"playerId": "your-id"}'
+```
+
+Response:
+```json
+{
+  "success": true,
+  "message": "Shot towards goal!",
+  "ballVelocity": { "vx": 8.5, "vy": 0.2 }
+}
 ```
 
 **Tackle**:
@@ -216,6 +243,16 @@ curl -X POST http://localhost:3000/api/game/{gameId}/shoot \
 curl -X POST http://localhost:3000/api/game/{gameId}/tackle \
   -H "Content-Type": "application/json" \
   -d '{"playerId": "your-id", "targetPlayerId": "opponent-id"}'
+```
+
+Response:
+```json
+{
+  "success": true,
+  "tackleSuccess": true,
+  "message": "Tackle successful!",
+  "ballIsFree": true
+}
 ```
 
 ### 4. Agent Loop Example
