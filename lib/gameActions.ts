@@ -4,14 +4,15 @@ import { GameStateModel } from "@/models/GameState";
 import { distance, simulate } from "./gameLogic";
 
 /**
- * Move player to target position
+ * Move player to target position with optional custom speed
  */
 export async function movePlayer(
   gameId: string,
   playerId: string,
   targetX: number,
-  targetY: number
-): Promise<{ success: boolean; message?: string; position?: Position; targetPosition?: Position; distance?: number }> {
+  targetY: number,
+  speed?: number
+): Promise<{ success: boolean; message?: string; position?: Position; targetPosition?: Position; distance?: number; speed?: number }> {
   await dbConnect();
 
   const game = await GameStateModel.findOne({ gameId });
@@ -28,6 +29,17 @@ export async function movePlayer(
   // Check cooldown
   if (player.lastActionTime && now - player.lastActionTime < GAME_CONFIG.MOVE_COOLDOWN) {
     return { success: false, message: "Move cooldown active" };
+  }
+
+  // Validate and set custom speed if provided
+  if (speed !== undefined) {
+    if (speed < GAME_CONFIG.MIN_PLAYER_SPEED) {
+      return { success: false, message: `Speed too low. Minimum: ${GAME_CONFIG.MIN_PLAYER_SPEED}` };
+    }
+    if (speed > GAME_CONFIG.MAX_PLAYER_SPEED) {
+      return { success: false, message: `Speed too high. Maximum: ${GAME_CONFIG.MAX_PLAYER_SPEED}` };
+    }
+    player.speed = speed;
   }
 
   // Validate target position is within field bounds
@@ -60,7 +72,8 @@ export async function movePlayer(
 
   await game.save();
 
-  console.log(`Player ${playerId} target set to (${clampedX}, ${clampedY}), distance: ${Math.round(dist)}`);
+  const actualSpeed = player.speed || GAME_CONFIG.PLAYER_SPEED;
+  console.log(`Player ${playerId} target set to (${clampedX}, ${clampedY}), distance: ${Math.round(dist)}, speed: ${actualSpeed}`);
 
   return {
     success: true,
@@ -73,7 +86,8 @@ export async function movePlayer(
       y: clampedY
     },
     distance: Math.round(dist),
-    message: `Moving to (${Math.round(clampedX)}, ${Math.round(clampedY)}), distance: ${Math.round(dist)} pixels`
+    speed: actualSpeed,
+    message: `Moving to (${Math.round(clampedX)}, ${Math.round(clampedY)}), distance: ${Math.round(dist)} pixels at speed ${actualSpeed}`
   };
 }
 

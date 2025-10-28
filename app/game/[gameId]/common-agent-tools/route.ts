@@ -63,7 +63,7 @@ export async function GET(
     },
     {
       name: "move",
-      description: "Move your player towards a target position on the field.",
+      description: "Move your player towards a target position on the field. Player will automatically move to the target at their configured speed. Optionally set a custom speed for this movement (min: 5, max: 50, default: 20 pixels per 50ms tick).",
       apiSpec: {
         path: `/api/game/${gameId}/move`,
         method: "POST",
@@ -85,6 +85,12 @@ export async function GET(
           targetY: {
             type: "number",
             description: "Target Y coordinate (0-800)",
+          },
+          speed: {
+            type: "number",
+            description: "Optional custom movement speed in pixels per simulation step (min: 5, max: 50, default: 20). Higher values = faster movement.",
+            minimum: 5,
+            maximum: 50,
           },
         },
       },

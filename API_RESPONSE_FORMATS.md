@@ -10,14 +10,15 @@ All action endpoints now return detailed information about what happened, not ju
 
 **Endpoint**: `POST /api/game/{gameId}/move`
 
-**Behavior**: Sets target position for autonomous movement. Player will automatically move towards target at constant speed (4 pixels per 50ms) until reaching destination or receiving new move command.
+**Behavior**: Sets target position for autonomous movement. Player will automatically move towards target at their configured speed (default: 20 pixels per 50ms) until reaching destination or receiving new move command.
 
 **Request Body**:
 ```json
 {
   "playerId": "player-uuid",
   "targetX": 600,
-  "targetY": 400
+  "targetY": 400,
+  "speed": 30  // Optional: custom speed (5-50, default: 20)
 }
 ```
 
@@ -34,7 +35,8 @@ All action endpoints now return detailed information about what happened, not ju
     "y": 400
   },
   "distance": 142,
-  "message": "Moving to (600, 400), distance: 142 pixels"
+  "speed": 30,
+  "message": "Moving to (600, 400), distance: 142 pixels at speed 30"
 }
 ```
 
@@ -44,19 +46,29 @@ All action endpoints now return detailed information about what happened, not ju
 { "success": false, "message": "Player not found" }
 { "success": false, "message": "Move cooldown active" }
 { "success": false, "message": "Game not in progress" }
+{ "success": false, "message": "Speed too low. Minimum: 5" }
+{ "success": false, "message": "Speed too high. Maximum: 50" }
 ```
 
 **Notes**:
 - `position`: Current position when command was received
 - `targetPosition`: Destination player will autonomously move towards
 - `distance`: Total distance to travel (in pixels)
-- Player moves at `PLAYER_SPEED` (4 pixels) per simulation tick (50ms)
-- Approximately 80 pixels per second
+- `speed`: Movement speed (pixels per simulation tick). Optional parameter
+- **Default speed**: 20 pixels per tick = 400 pixels per second
+- **Speed range**: 5 (min) to 50 (max) pixels per tick
+- **Speed persistence**: Once set, custom speed persists for future movements
 - Player continues moving automatically - no need to call move repeatedly
 - New move commands override previous target
 - Target is clamped to field bounds automatically
 - Cooldown: 100ms between move commands
 - Player stops when within 0.5 pixels of target
+
+**Speed Examples**:
+- Sprint: `speed: 40-50` (800-1000 pixels/sec)
+- Normal: `speed: 20` (400 pixels/sec, default)
+- Tactical positioning: `speed: 10-15` (200-300 pixels/sec)
+- Slow/shielding: `speed: 5-8` (100-160 pixels/sec)
 
 ---
 

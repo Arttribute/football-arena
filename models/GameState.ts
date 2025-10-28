@@ -18,6 +18,7 @@ const PlayerSchema = new Schema({
     x: Number,
     y: Number,
   },
+  speed: Number, // Custom movement speed (pixels per simulation step)
   hasBall: Boolean,
   lastActionTime: Number,
   stats: {

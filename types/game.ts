@@ -9,7 +9,9 @@ export const GAME_CONFIG = {
   BALL_RADIUS: 8,
   
   // Game mechanics
-  PLAYER_SPEED: 4, // pixels per simulation step
+  PLAYER_SPEED: 20, // pixels per simulation step (base speed, 5x faster than v1.0)
+  MIN_PLAYER_SPEED: 5, // minimum allowed player speed
+  MAX_PLAYER_SPEED: 50, // maximum allowed player speed
   BALL_SPEED_BASE: 8,
   BALL_FRICTION: 0.95, // velocity multiplier per step
   PASS_SPEED: 6,
@@ -55,6 +57,7 @@ export interface Player {
   role: PlayerRole;
   position: Position;
   targetPosition?: Position; // Where the player is moving to
+  speed?: number; // Custom movement speed (pixels per simulation step)
   hasBall: boolean;
   lastActionTime?: number;
   stats: {

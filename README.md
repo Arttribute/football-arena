@@ -32,9 +32,9 @@ A real-time multi-instance 5v5 football/soccer game built with Next.js 15, TypeS
 
 ### Movement System: Autonomous Navigation
 
-**⚠️ Important Change in v1.1.0**
+**⚠️ Important Changes**
 
-The movement system has been redesigned for better agent experience:
+The movement system has been redesigned for better agent experience with configurable speed:
 
 **OLD System (v1.0.0):**
 - Move action moved player by exactly 4 pixels (PLAYER_SPEED)
@@ -43,10 +43,18 @@ The movement system has been redesigned for better agent experience:
 - Example: Moving 600 pixels required ~150 API calls
 - Felt "stuttery" and required complex agent logic
 
-**NEW System (v1.1.0+):**
+**NEW System (v1.1.0):**
 - Move action sets a **target position**
 - Player **autonomously moves** towards target at constant speed (4 pixels per 50ms simulation tick)
 - **Single API call** to reach any position on the field
+
+**NEW in v1.2.0 - Configurable Speed:**
+- **Base speed increased 5x**: From 4 to 20 pixels per simulation tick (much faster!)
+- **Custom speed per move**: Optional `speed` parameter (min: 5, max: 50)
+- Players can move at different speeds based on tactical needs
+- Speed persists across movement commands until changed
+
+**How It Works:**
 - Player continues moving automatically until:
   - ✅ Target is reached
   - ✅ New move command overrides the target
@@ -65,7 +73,7 @@ The movement system has been redesigned for better agent experience:
 **Example:**
 
 ```bash
-# One call - player moves from current position to (600, 400)
+# Basic move - uses default speed (20 pixels per tick)
 curl -X POST /api/game/{gameId}/move \
   -d '{"playerId": "...", "targetX": 600, "targetY": 400}'
 
@@ -75,10 +83,25 @@ curl -X POST /api/game/{gameId}/move \
   "position": { "x": 727, "y": 386 },      # Current position
   "targetPosition": { "x": 600, "y": 400 }, # Destination
   "distance": 142,                           # Distance to travel
-  "message": "Moving to (600, 400), distance: 142 pixels"
+  "speed": 20,                               # Movement speed
+  "message": "Moving to (600, 400), distance: 142 pixels at speed 20"
 }
 
-# Player now automatically moves ~4 pixels every 50ms until reaching (600, 400)
+# Move with custom speed (faster tactical sprint)
+curl -X POST /api/game/{gameId}/move \
+  -d '{"playerId": "...", "targetX": 600, "targetY": 400, "speed": 35}'
+
+# Response with custom speed:
+{
+  "success": true,
+  "position": { "x": 727, "y": 386 },
+  "targetPosition": { "x": 600, "y": 400 },
+  "distance": 142,
+  "speed": 35,  # 75% faster than default!
+  "message": "Moving to (600, 400), distance: 142 pixels at speed 35"
+}
+
+# Player automatically moves at specified speed every 50ms until reaching target
 # You can watch it happen in the UI or via the perception endpoint
 ```
 
@@ -250,9 +273,15 @@ Response includes:
 
 **Move**:
 ```bash
+# Move with default speed
 curl -X POST http://localhost:3000/api/game/{gameId}/move \
   -H "Content-Type: application/json" \
   -d '{"playerId": "your-id", "targetX": 600, "targetY": 400}'
+
+# Move with custom speed (optional)
+curl -X POST http://localhost:3000/api/game/{gameId}/move \
+  -H "Content-Type: application/json" \
+  -d '{"playerId": "your-id", "targetX": 600, "targetY": 400, "speed": 30}'
 ```
 
 Response:
@@ -260,7 +289,10 @@ Response:
 {
   "success": true,
   "position": { "x": 604, "y": 400 },
-  "message": "Moved to (604, 400)"
+  "targetPosition": { "x": 600, "y": 400 },
+  "distance": 4,
+  "speed": 20,
+  "message": "Moving to (600, 400), distance: 4 pixels at speed 20"
 }
 ```
 
@@ -380,6 +412,12 @@ async function playGame(gameId, playerId) {
 - Width: 1200px
 - Height: 800px
 - Goal Width: 150px
+
+### Movement Speed
+- Default Speed: 20 pixels per simulation tick (50ms)
+- Minimum Speed: 5 pixels per tick
+- Maximum Speed: 50 pixels per tick
+- Speed is configurable per move action
 
 ### Cooldowns
 - Move: 100ms

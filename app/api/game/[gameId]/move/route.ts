@@ -8,7 +8,7 @@ export async function POST(
   try {
     const { gameId } = await params;
     const body = await request.json();
-    const { playerId, targetX, targetY } = body;
+    const { playerId, targetX, targetY, speed } = body;
 
     if (!playerId || targetX === undefined || targetY === undefined) {
       return NextResponse.json(
@@ -17,7 +17,7 @@ export async function POST(
       );
     }
 
-    const result = await movePlayer(gameId, playerId, targetX, targetY);
+    const result = await movePlayer(gameId, playerId, targetX, targetY, speed);
     
     if (result.success) {
       return NextResponse.json(result);

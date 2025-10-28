@@ -51,8 +51,9 @@ export function simulate(state: IGameStateDoc, now: number): boolean {
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist > 0.5) {
-          // Move towards target at constant speed
-          const moveAmount = Math.min(GAME_CONFIG.PLAYER_SPEED, dist);
+          // Move towards target at constant speed (use player's custom speed if set)
+          const playerSpeed = player.speed || GAME_CONFIG.PLAYER_SPEED;
+          const moveAmount = Math.min(playerSpeed, dist);
           player.position.x += (dx / dist) * moveAmount;
           player.position.y += (dy / dist) * moveAmount;
 

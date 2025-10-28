@@ -35,16 +35,19 @@ POST /api/game/{gameId}/move
 {
   "playerId": "uuid",
   "targetX": 600,
-  "targetY": 400
+  "targetY": 400,
+  "speed": 25  // Optional: custom speed (5-50, default: 20)
 }
 ```
 
 **What Happens:**
 1. Validates player exists and game is playing
-2. Clamps target to field bounds (prevents out-of-bounds)
-3. Calculates distance to target
-4. Sets `player.targetPosition = { x: 600, y: 400 }`
-5. Returns confirmation with journey details
+2. Validates custom speed is within limits (if provided)
+3. Sets player's custom speed (persists for future movements)
+4. Clamps target to field bounds (prevents out-of-bounds)
+5. Calculates distance to target
+6. Sets `player.targetPosition = { x: 600, y: 400 }`
+7. Returns confirmation with journey details
 
 **Response:**
 ```json
@@ -53,7 +56,8 @@ POST /api/game/{gameId}/move
   "position": { "x": 727, "y": 386 },
   "targetPosition": { "x": 600, "y": 400 },
   "distance": 142,
-  "message": "Moving to (600, 400), distance: 142 pixels"
+  "speed": 25,
+  "message": "Moving to (600, 400), distance: 142 pixels at speed 25"
 }
 ```
 
@@ -68,9 +72,10 @@ Every 50ms, the simulation loop:
    dy = targetPosition.y - position.y
    distance = sqrt(dx² + dy²)
 
-   // Move at constant speed (4 pixels per tick)
+   // Move at player's configured speed (or default 20 pixels per tick)
    if (distance > 0.5) {
-     moveAmount = min(PLAYER_SPEED, distance)  // 4 pixels
+     playerSpeed = player.speed || GAME_CONFIG.PLAYER_SPEED  // Use custom or default
+     moveAmount = min(playerSpeed, distance)
      position.x += (dx / distance) * moveAmount
      position.y += (dy / distance) * moveAmount
 
@@ -116,13 +121,23 @@ POST /move {"targetX": 800, "targetY": 200}
 ## Configuration
 
 ### Speed
+
+**v1.2.0+ - Configurable Speed:**
 ```typescript
-GAME_CONFIG.PLAYER_SPEED = 4  // pixels per simulation step (50ms)
+GAME_CONFIG.PLAYER_SPEED = 20       // Default speed: pixels per simulation step (50ms)
+GAME_CONFIG.MIN_PLAYER_SPEED = 5    // Minimum allowed speed
+GAME_CONFIG.MAX_PLAYER_SPEED = 50   // Maximum allowed speed
 ```
 
-- 4 pixels per 50ms = 80 pixels per second
-- To travel 800 pixels takes ~10 seconds
-- Speed is constant - no acceleration/deceleration
+**Speed Characteristics:**
+- **Default**: 20 pixels per 50ms = 400 pixels per second
+- **Minimum**: 5 pixels per 50ms = 100 pixels per second
+- **Maximum**: 50 pixels per 50ms = 1000 pixels per second
+- To travel 800 pixels at default speed: ~2 seconds
+- To travel 800 pixels at max speed: ~0.8 seconds
+- To travel 800 pixels at min speed: ~8 seconds
+- Speed is constant during movement - no acceleration/deceleration
+- Custom speed persists across movement commands until changed
 
 ### Simulation Rate
 ```typescript
@@ -143,6 +158,86 @@ GAME_CONFIG.PLAYER_RADIUS = 15
 - Target positions are automatically clamped to valid area
 - Min X: 15, Max X: 1185
 - Min Y: 15, Max Y: 785
+
+## Configurable Speed (v1.2.0+)
+
+### Setting Custom Speed
+
+Players can move at different speeds based on tactical needs:
+
+```javascript
+// Slow positioning move (conserving stamina conceptually)
+await move(gameId, playerId, 600, 400, 8);  // Slow walk
+
+// Normal move (default speed if not specified)
+await move(gameId, playerId, 600, 400);     // 20 pixels/tick
+
+// Fast sprint to intercept
+await move(gameId, playerId, 600, 400, 40); // Sprint!
+
+// Maximum speed chase
+await move(gameId, playerId, 600, 400, 50); // Full sprint!
+```
+
+### Speed Persistence
+
+Once set, a player's custom speed persists:
+
+```javascript
+// Set speed on first move
+await move(gameId, playerId, 300, 200, 35);  // Fast
+
+// Subsequent moves use same speed if not specified
+await move(gameId, playerId, 700, 600);      // Still moving at 35
+
+// Change speed explicitly
+await move(gameId, playerId, 500, 400, 15);  // Now slower
+
+// Back to default
+await move(gameId, playerId, 600, 300, 20);  // Default speed
+```
+
+### Tactical Uses
+
+**Fast Sprint:**
+- Chase loose ball: `speed: 45-50`
+- Counter-attack runs: `speed: 40`
+- Defensive recovery: `speed: 45`
+
+**Normal Pace:**
+- Positioning: `speed: 20` (default)
+- Buildup play: `speed: 15-25`
+- Formation adjustments: `speed: 20`
+
+**Slow Movement:**
+- Ball shielding: `speed: 8-10`
+- Waiting for support: `speed: 5-8`
+- Controlling tempo: `speed: 10-15`
+
+### Speed Validation
+
+```json
+// Too slow
+{
+  "speed": 3,
+  "success": false,
+  "message": "Speed too low. Minimum: 5"
+}
+
+// Too fast
+{
+  "speed": 60,
+  "success": false,
+  "message": "Speed too high. Maximum: 50"
+}
+
+// Just right
+{
+  "speed": 30,
+  "success": true,
+  ...
+}
+```
 
 ## AI Agent Usage
 
