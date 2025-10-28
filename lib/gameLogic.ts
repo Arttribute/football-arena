@@ -216,10 +216,10 @@ export async function createGame(
     stats: { goals: 0, assists: 0, passes: 0, tackles: 0 },
   };
 
-  const gameState: IGameStateDoc = {
+  const gameState = {
     _id: gameId,
     gameId,
-    status: 'waiting',
+    status: 'waiting' as const,
     config: {
       playersPerTeam: config.playersPerTeam || 5,
       goalsToWin: config.goalsToWin || 3,

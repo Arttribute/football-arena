@@ -1,7 +1,7 @@
-import { Schema, model, models } from "mongoose";
+import { Schema, model, models, Document } from "mongoose";
 import type { GameState as IGameState, Player, Ball, TeamId } from "@/types/game";
 
-export interface IGameStateDoc extends Omit<IGameState, '_id'> {
+export interface IGameStateDoc extends Omit<IGameState, '_id'>, Document {
   _id: string;
 }
 

@@ -102,5 +102,51 @@ await game.save();
 ## Files Modified
 1. `lib/gameActions.ts` - All player action functions
 2. `lib/gameLogic.ts` - Game simulation and logic functions
+3. `models/GameState.ts` - Fixed TypeScript interface to extend Mongoose Document
 
 All changes are backward compatible and don't affect the API interface.
+
+## TypeScript Build Fix
+
+### Issue
+After adding `markModified()` calls, TypeScript build failed with:
+```
+Property 'markModified' does not exist on type 'IGameStateDoc'
+```
+
+### Solution
+Updated `IGameStateDoc` interface to extend Mongoose's `Document` type:
+
+```typescript
+// Before
+export interface IGameStateDoc extends Omit<IGameState, '_id'> {
+  _id: string;
+}
+
+// After
+import { Document } from "mongoose";
+
+export interface IGameStateDoc extends Omit<IGameState, '_id'>, Document {
+  _id: string;
+}
+```
+
+This adds all Mongoose Document methods (`markModified`, `save`, `toObject`, etc.) to the interface.
+
+### Additional Fix
+Removed explicit typing in `createGame()` function since plain objects can't be typed as Document:
+
+```typescript
+// Before
+const gameState: IGameStateDoc = { ... };
+
+// After
+const gameState = { ... }; // Let TypeScript infer, Mongoose will handle it
+```
+
+## Build Verification
+✅ TypeScript compilation successful
+✅ Next.js build successful
+✅ No runtime errors
+✅ Dev server starts without issues
+✅ All game actions work correctly
