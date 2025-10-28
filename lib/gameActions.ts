@@ -47,9 +47,15 @@ export async function movePlayer(
     // If player has ball, ball moves with them
     if (player.hasBall && game.ball.possessionPlayerId === playerId) {
       game.ball.position = { ...player.position };
+      game.markModified('ball.position');
     }
 
     player.lastActionTime = now;
+
+    // Mark nested objects as modified for Mongoose
+    game.markModified('teamA');
+    game.markModified('teamB');
+
     game.version++;
     game.lastUpdate = now;
 
@@ -113,6 +119,12 @@ export async function passBall(
   player.hasBall = false;
   player.stats.passes++;
   player.lastActionTime = now;
+
+  // Mark nested objects as modified for Mongoose
+  game.markModified('ball');
+  game.markModified('teamA');
+  game.markModified('teamB');
+
   game.version++;
   game.lastUpdate = now;
 
@@ -168,6 +180,12 @@ export async function shoot(
   game.ball.possessionPlayerId = undefined;
   player.hasBall = false;
   player.lastActionTime = now;
+
+  // Mark nested objects as modified for Mongoose
+  game.markModified('ball');
+  game.markModified('teamA');
+  game.markModified('teamB');
+
   game.version++;
   game.lastUpdate = now;
 
@@ -236,6 +254,12 @@ export async function tackle(
   }
 
   player.lastActionTime = now;
+
+  // Mark nested objects as modified for Mongoose
+  game.markModified('ball');
+  game.markModified('teamA');
+  game.markModified('teamB');
+
   game.version++;
   game.lastUpdate = now;
 

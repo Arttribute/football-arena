@@ -373,6 +373,87 @@ GameStateSchema.index({ status: 1, createdAt: -1 }); // ✅ Compound index
 4. **Atomic Operations**: Use `findOneAndUpdate` with optimistic locking for concurrent game state updates
 5. **Real-time Updates**: SSE with 30s timeout provides responsive streaming without overwhelming the server
 
+## ⚠️ Common Pitfalls & How to Avoid Them
+
+When developing similar real-time multiplayer games with MongoDB/Mongoose, watch out for these issues:
+
+### Critical Issue: Mongoose Nested Object Updates
+
+**Problem**: Game actions (move, pass, shoot, tackle) return `{"success": true}` but changes don't appear in the UI or perception API.
+
+**Root Cause**: Mongoose doesn't automatically detect changes to nested object properties or array elements. When you modify:
+- `player.position.x` or `player.position.y`
+- `ball.velocity.vx` or `ball.velocity.vy`
+- Items within arrays like `teamA` or `teamB`
+
+Mongoose won't know these changed unless you explicitly tell it.
+
+**The Bug**:
+```javascript
+// ❌ WRONG - Changes won't be saved!
+const game = await GameStateModel.findOne({ gameId });
+const player = game.teamA[0];
+player.position.x = 100;  // Mongoose doesn't detect this change
+await game.save();        // Position is NOT saved to database
+```
+
+**The Fix**:
+```javascript
+// ✅ CORRECT - Use markModified()
+const game = await GameStateModel.findOne({ gameId });
+const player = game.teamA[0];
+player.position.x = 100;
+game.markModified('teamA');  // Tell Mongoose this array changed
+await game.save();           // Now it saves correctly!
+```
+
+**Where to Apply**:
+1. **Player movements**: `game.markModified('teamA')` or `game.markModified('teamB')`
+2. **Ball updates**: `game.markModified('ball')` or `game.markModified('ball.position')`
+3. **Stats changes**: `game.markModified('teamA')` when updating `player.stats.goals`
+4. **Any array modification**: Always mark the array as modified
+
+**Real Example from This Project**:
+```javascript
+// In lib/gameActions.ts - movePlayer function
+export async function movePlayer(gameId: string, playerId: string, targetX: number, targetY: number) {
+  const game = await GameStateModel.findOne({ gameId });
+  const player = [...game.teamA, ...game.teamB].find(p => p.id === playerId);
+
+  // Update position
+  player.position.x = newX;
+  player.position.y = newY;
+
+  // ✅ CRITICAL: Mark as modified
+  game.markModified('teamA');
+  game.markModified('teamB');
+
+  await game.save();  // Now changes are actually saved!
+}
+```
+
+**Symptoms of This Bug**:
+- API returns success but nothing happens in the UI
+- Database shows old values after "successful" updates
+- SSE stream doesn't send updated state
+- Perception API returns stale data
+- Players appear frozen despite move commands
+
+**Prevention**:
+- Always call `markModified()` after modifying nested objects
+- Test your actions in the UI, not just via API responses
+- Check the database directly to verify changes are persisted
+- Add `markModified()` calls to all game logic and action functions
+
+**Files to Check**:
+- `lib/gameActions.ts` - All player action functions
+- `lib/gameLogic.ts` - Game simulation and physics
+- Any file that modifies game state nested properties
+
+**Further Reading**:
+- [Mongoose markModified() docs](https://mongoosejs.com/docs/api/document.html#Document.prototype.markModified())
+- See `GAME_FIX_SUMMARY.md` for detailed fix documentation
+
 ## 📊 MongoDB Schema
 
 ```javascript

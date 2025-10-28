@@ -60,10 +60,13 @@ export function simulate(state: IGameStateDoc, now: number): boolean {
       state.ball.position.x = Math.max(GAME_CONFIG.BALL_RADIUS, Math.min(GAME_CONFIG.FIELD_WIDTH - GAME_CONFIG.BALL_RADIUS, state.ball.position.x));
       state.ball.position.y = Math.max(GAME_CONFIG.BALL_RADIUS, Math.min(GAME_CONFIG.FIELD_HEIGHT - GAME_CONFIG.BALL_RADIUS, state.ball.position.y));
 
+      // Mark ball as modified for Mongoose
+      state.markModified('ball');
+
       // Check for goal
       const goalY = GAME_CONFIG.FIELD_HEIGHT / 2;
       const goalHalfWidth = GAME_CONFIG.GOAL_WIDTH / 2;
-      
+
       // Team A goal (left side, x = 0)
       if (state.ball.position.x <= GAME_CONFIG.BALL_RADIUS &&
           state.ball.position.y >= goalY - goalHalfWidth &&
@@ -71,18 +74,22 @@ export function simulate(state: IGameStateDoc, now: number): boolean {
         state.score.teamB++;
         if (state.ball.lastTouchPlayerId) {
           const scorer = [...state.teamB].find(p => p.id === state.ball.lastTouchPlayerId);
-          if (scorer) scorer.stats.goals++;
+          if (scorer) {
+            scorer.stats.goals++;
+            state.markModified('teamB');
+          }
         }
         resetBall(state);
+        state.markModified('score');
         stateChanged = true;
-        
+
         if (state.score.teamB >= state.config.goalsToWin) {
           state.status = "finished";
           state.winner = "B";
           state.finishedAt = now;
         }
       }
-      
+
       // Team B goal (right side, x = FIELD_WIDTH)
       if (state.ball.position.x >= GAME_CONFIG.FIELD_WIDTH - GAME_CONFIG.BALL_RADIUS &&
           state.ball.position.y >= goalY - goalHalfWidth &&
@@ -90,11 +97,15 @@ export function simulate(state: IGameStateDoc, now: number): boolean {
         state.score.teamA++;
         if (state.ball.lastTouchPlayerId) {
           const scorer = [...state.teamA].find(p => p.id === state.ball.lastTouchPlayerId);
-          if (scorer) scorer.stats.goals++;
+          if (scorer) {
+            scorer.stats.goals++;
+            state.markModified('teamA');
+          }
         }
         resetBall(state);
+        state.markModified('score');
         stateChanged = true;
-        
+
         if (state.score.teamA >= state.config.goalsToWin) {
           state.status = "finished";
           state.winner = "A";
@@ -111,6 +122,9 @@ export function simulate(state: IGameStateDoc, now: number): boolean {
           state.ball.lastTouchPlayerId = player.id;
           state.ball.velocity = { vx: 0, vy: 0 };
           player.hasBall = true;
+          state.markModified('ball');
+          state.markModified('teamA');
+          state.markModified('teamB');
           stateChanged = true;
           break;
         }
@@ -121,6 +135,7 @@ export function simulate(state: IGameStateDoc, now: number): boolean {
       const possessor = allPlayers.find(p => p.id === state.ball.possessionPlayerId);
       if (possessor) {
         state.ball.position = { ...possessor.position };
+        state.markModified('ball.position');
       }
     }
 
@@ -140,16 +155,21 @@ function resetBall(state: IGameStateDoc) {
   };
   state.ball.velocity = { vx: 0, vy: 0 };
   state.ball.possessionPlayerId = undefined;
-  
+
   // Clear all players' ball possession
   [...state.teamA, ...state.teamB].forEach(p => p.hasBall = false);
+
+  // Mark as modified for Mongoose
+  state.markModified('ball');
+  state.markModified('teamA');
+  state.markModified('teamB');
 }
 
 // Get initial position for player based on role and team
 function getInitialPosition(role: PlayerRole, team: TeamId, teamSize: number): Position {
   const centerY = GAME_CONFIG.FIELD_HEIGHT / 2;
   const isTeamA = team === 'A';
-  
+
   switch (role) {
     case 'goalkeeper':
       return {
@@ -246,7 +266,7 @@ export async function joinGame(
   }
 
   const playerId = uuidv4();
-  
+
   // Determine which team to join
   let targetTeam: TeamId;
   if (teamPreference) {
@@ -266,10 +286,10 @@ export async function joinGame(
   }
 
   const team = targetTeam === 'A' ? game.teamA : game.teamB;
-  
+
   // Auto-assign role if not specified
   const assignedRole = role || autoAssignRole(team);
-  
+
   const newPlayer: Player = {
     id: playerId,
     name: playerName,
@@ -281,6 +301,11 @@ export async function joinGame(
   };
 
   team.push(newPlayer);
+
+  // Mark team arrays as modified for Mongoose
+  game.markModified('teamA');
+  game.markModified('teamB');
+
   game.version++;
 
   // Check if game should start
@@ -349,4 +374,3 @@ export async function listActiveGames(): Promise<GameState[]> {
 
   return games.map(sanitizeGameState);
 }
-
