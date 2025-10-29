@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, use } from "react";
+import { useState, useEffect, useCallback, use, useRef } from "react";
 import { useRouter } from "next/navigation";
 import GameCanvas from "@/components/GameCanvas";
 import type { GameState } from "@/types/game";
@@ -11,20 +11,50 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(true);
+  const errorCountRef = useRef<number>(0);
+  const successCountRef = useRef<number>(0);
+  const MAX_CONSECUTIVE_ERRORS = 5; // Show error only after 5 consecutive failures
 
   const fetchGameState = useCallback(async () => {
     try {
-      const res = await fetch(`/api/game/${gameId}/state`);
+      const res = await fetch(`/api/game/${gameId}/state`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
       const data = await res.json();
-      
-      if (data.success) {
+
+      if (data.success && data.gameState) {
         setGameState(data.gameState);
-        setError(null);
+        errorCountRef.current = 0; // Reset error count on success
+        successCountRef.current++;
+        setIsConnected(true);
+
+        // Clear any transient error after 2 successful fetches
+        if (successCountRef.current >= 2) {
+          setError(null);
+        }
       } else {
-        setError(data.message || "Failed to load game");
+        throw new Error(data.message || "Failed to load game");
       }
     } catch (err) {
-      setError("Failed to connect to server");
+      errorCountRef.current++;
+      console.error(`Error fetching game state (${errorCountRef.current}/${MAX_CONSECUTIVE_ERRORS}):`, err);
+
+      // Show warning indicator but don't break the UI
+      setIsConnected(false);
+
+      // Only set error state after consecutive failures
+      if (errorCountRef.current >= MAX_CONSECUTIVE_ERRORS) {
+        setError(err instanceof Error ? err.message : "Failed to connect to server");
+      }
     } finally {
       setLoading(false);
     }
@@ -34,37 +64,87 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
     // Try SSE first
     let eventSource: EventSource | null = null;
     let fallbackInterval: NodeJS.Timeout | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
 
-    try {
-      eventSource = new EventSource(`/api/game/${gameId}/stream`);
+    const setupSSE = () => {
+      try {
+        eventSource = new EventSource(`/api/game/${gameId}/stream`);
 
-      eventSource.addEventListener("init", (event) => {
-        const state = JSON.parse(event.data);
-        setGameState(state);
-        setLoading(false);
-      });
+        eventSource.addEventListener("init", (event) => {
+          try {
+            const state = JSON.parse(event.data);
+            setGameState(state);
+            setLoading(false);
+            setIsConnected(true);
+            errorCountRef.current = 0;
+            successCountRef.current++;
+          } catch (e) {
+            console.error("Error parsing SSE init:", e);
+          }
+        });
 
-      eventSource.addEventListener("update", (event) => {
-        const state = JSON.parse(event.data);
-        setGameState(state);
-      });
+        eventSource.addEventListener("update", (event) => {
+          try {
+            const state = JSON.parse(event.data);
+            setGameState(state);
+            setIsConnected(true);
+            errorCountRef.current = 0;
+            successCountRef.current++;
+          } catch (e) {
+            console.error("Error parsing SSE update:", e);
+          }
+        });
 
-      eventSource.addEventListener("error", () => {
-        eventSource?.close();
-        // Fall back to polling
-        if (!fallbackInterval) {
-          fallbackInterval = setInterval(fetchGameState, 1000);
-        }
-      });
-    } catch (err) {
-      // SSE not supported, use polling
-      fallbackInterval = setInterval(fetchGameState, 1000);
-      fetchGameState();
-    }
+        eventSource.addEventListener("error", (event) => {
+          console.error("SSE error, falling back to polling");
+          eventSource?.close();
+          setIsConnected(false);
+
+          // Fall back to polling
+          if (!fallbackInterval) {
+            fallbackInterval = setInterval(fetchGameState, 1000);
+            fetchGameState(); // Immediate fetch
+          }
+
+          // Try to reconnect SSE after 5 seconds
+          reconnectTimeout = setTimeout(() => {
+            console.log("Attempting to reconnect SSE...");
+            if (fallbackInterval) {
+              clearInterval(fallbackInterval);
+              fallbackInterval = null;
+            }
+            setupSSE();
+          }, 5000);
+        });
+
+        eventSource.addEventListener("open", () => {
+          console.log("SSE connection established");
+          setIsConnected(true);
+        });
+
+      } catch (err) {
+        console.error("SSE not supported, using polling");
+        // SSE not supported, use polling
+        fallbackInterval = setInterval(fetchGameState, 1000);
+        fetchGameState();
+      }
+    };
+
+    setupSSE();
 
     return () => {
-      if (eventSource) eventSource.close();
-      if (fallbackInterval) clearInterval(fallbackInterval);
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+      if (fallbackInterval) {
+        clearInterval(fallbackInterval);
+        fallbackInterval = null;
+      }
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
+      }
     };
   }, [gameId, fetchGameState]);
 
@@ -79,11 +159,13 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
     );
   }
 
-  if (error || !gameState) {
+  // Only show error page if we have persistent errors AND no game state
+  if (error && !gameState) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-500 text-xl mb-4">{error || "Game not found"}</p>
+          <p className="text-gray-400 mb-6">Unable to load game after multiple attempts</p>
           <button
             onClick={() => router.push("/")}
             className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
@@ -95,9 +177,32 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
     );
   }
 
+  // Show game even if there are transient errors (keeps showing last known state)
+  if (!gameState) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-400 text-xl mb-4">Waiting for game data...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-900 py-8">
       <div className="container mx-auto px-4">
+        {/* Connection Status Banner - Only show if disconnected */}
+        {!isConnected && (
+          <div className="mb-4 bg-yellow-900/50 border border-yellow-600 rounded-lg p-3 flex items-center justify-center">
+            <svg className="animate-spin h-5 w-5 text-yellow-500 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span className="text-yellow-200 text-sm">Connection interrupted, reconnecting...</span>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <button
@@ -191,4 +296,3 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
     </div>
   );
 }
-

@@ -68,7 +68,8 @@ export async function movePlayer(
   game.markModified('teamB');
 
   game.version++;
-  game.lastUpdate = now;
+  // Don't update lastUpdate here - let simulation handle it
+  // This ensures ball starts moving immediately on next simulation tick
 
   await game.save();
 
@@ -151,7 +152,8 @@ export async function passBall(
   game.markModified('teamB');
 
   game.version++;
-  game.lastUpdate = now;
+  // Don't update lastUpdate here - let simulation handle it
+  // This ensures ball starts moving immediately on next simulation tick
 
   await game.save();
 
@@ -219,7 +221,8 @@ export async function shoot(
   game.markModified('teamB');
 
   game.version++;
-  game.lastUpdate = now;
+  // Don't update lastUpdate here - let simulation handle it
+  // This ensures ball starts moving immediately on next simulation tick
 
   await game.save();
 
@@ -300,7 +303,8 @@ export async function tackle(
   game.markModified('teamB');
 
   game.version++;
-  game.lastUpdate = now;
+  // Don't update lastUpdate here - let simulation handle it
+  // This ensures ball starts moving immediately on next simulation tick
 
   await game.save();
 

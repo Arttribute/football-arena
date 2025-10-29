@@ -2,6 +2,119 @@
 
 All notable changes to Football Arena will be documented in this file.
 
+## [1.2.1] - 2025-10-29
+
+### Fixed - Real-Time Game State Issues
+
+Critical fixes for ball physics and error handling that were preventing proper gameplay.
+
+#### Issue 1: Ball Not Moving After Pass/Shoot
+
+**Problem**: Pass and shoot actions returned success with ball velocity, but the ball didn't actually move in the UI or game state.
+
+**Root Cause**: Action functions were setting `game.lastUpdate = now` which prevented the simulation from running for the next 50ms. The ball had velocity but no position updates.
+
+**Fix**: Removed `lastUpdate` assignments from all action functions. Only the simulation loop updates `lastUpdate` now.
+
+**Impact**: Ball now moves immediately after pass/shoot actions.
+
+#### Issue 2: UI Flashing "Internal Server Error"
+
+**Problem**: Game page repeatedly showed full-screen error message then went back to normal, making the game unplayable.
+
+**Root Cause**: Any single transient error (MongoDB connection blip, SSE timeout) immediately showed full-screen error and discarded game state.
+
+**Fix**: Implemented graceful degradation:
+- Error counting: Only show error after 5 consecutive failures
+- Last known state: Keep displaying game during reconnection
+- Visual feedback: Yellow warning banner instead of full-screen error
+- Auto-recovery: SSE auto-reconnects after 5 seconds
+- Polling fallback: Switches to polling on SSE errors
+
+**Impact**: Smooth, professional experience even with network/server issues.
+
+### Changed
+
+- Removed `game.lastUpdate = now` from `movePlayer()`, `passBall()`, `shoot()`, and `tackle()`
+- Complete rewrite of game page error handling with resilience
+- Added connection status indicator to UI
+- Implemented automatic SSE reconnection with fallback polling
+
+### Added
+
+- Connection status banner in game UI
+- Error counting with `useRef` hooks
+- SSE reconnection logic with 5-second retry
+- Graceful error recovery without breaking UI
+- Comprehensive documentation in `REALTIME_FIXES.md`
+
+### Documentation
+
+- Created `REALTIME_FIXES.md` with detailed problem analysis and solutions
+- Updated README.md with critical issue summaries
+- Added troubleshooting guides for both issues
+
+---
+
+## [1.2.0] - 2025-10-29
+
+### Added - Configurable Player Speed
+
+Players can now move at different speeds based on tactical needs!
+
+#### Features
+
+- **Base Speed Increased 5x**: From 4 to 20 pixels per simulation tick (50ms)
+- **Custom Speed Per Move**: Optional `speed` parameter (min: 5, max: 50)
+- **Speed Persistence**: Once set, custom speed persists until changed
+- **Tactical Flexibility**: Different speeds for sprinting, positioning, shielding
+
+#### Speed Examples
+
+- **Sprint**: 40-50 pixels/tick (800-1000 pixels/second)
+- **Normal**: 20 pixels/tick (400 pixels/second, default)
+- **Tactical**: 10-15 pixels/tick (200-300 pixels/second)
+- **Slow**: 5-8 pixels/tick (100-160 pixels/second)
+
+#### API Changes
+
+```javascript
+// Move with default speed
+POST /api/game/{id}/move
+{"playerId": "...", "targetX": 600, "targetY": 400}
+
+// Move with custom speed
+POST /api/game/{id}/move
+{"playerId": "...", "targetX": 600, "targetY": 400, "speed": 35}
+
+// Response includes speed
+{"success": true, "position": {...}, "targetPosition": {...}, "speed": 35}
+```
+
+### Changed
+
+- `GAME_CONFIG.PLAYER_SPEED`: 4 → 20 (5x faster)
+- Added `MIN_PLAYER_SPEED`: 5 pixels/tick
+- Added `MAX_PLAYER_SPEED`: 50 pixels/tick
+- Move endpoint now accepts optional `speed` parameter
+- Move response includes `speed` field
+
+### Added
+
+- `speed` field to Player interface and schema
+- Speed validation in `movePlayer()` function
+- Speed parameter to move API endpoint
+- Speed documentation in agent tools spec
+
+### Documentation
+
+- Updated README.md with speed configuration details
+- Updated MOVEMENT_SYSTEM.md with configurable speed section
+- Updated API_RESPONSE_FORMATS.md with speed examples
+- Added tactical use cases for different speeds
+
+---
+
 ## [1.1.0] - 2025-10-28
 
 ### Changed - Movement System Overhaul

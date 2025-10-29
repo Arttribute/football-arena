@@ -587,6 +587,43 @@ export async function movePlayer(gameId: string, playerId: string, targetX: numb
 - [Mongoose markModified() docs](https://mongoosejs.com/docs/api/document.html#Document.prototype.markModified())
 - See `GAME_FIX_SUMMARY.md` for detailed fix documentation
 
+### Critical Issue: Ball Not Moving After Pass/Shoot (v1.2.1)
+
+**Problem**: Pass/shoot endpoints return success with ball velocity, but ball doesn't move in UI.
+
+**Root Cause**: Action functions were setting `game.lastUpdate = now` which prevented the simulation from running for the next 50ms. The ball had velocity but position didn't update.
+
+**The Fix**:
+```javascript
+// ❌ WRONG - Prevents simulation
+game.ball.velocity = { vx: 6, vy: 0 };
+game.lastUpdate = now;  // This breaks it!
+await game.save();
+
+// ✅ CORRECT - Let simulation handle lastUpdate
+game.ball.velocity = { vx: 6, vy: 0 };
+game.version++;
+// Don't set lastUpdate - simulation will update it
+await game.save();
+```
+
+**Impact**: Ball now moves immediately after pass/shoot actions. See [REALTIME_FIXES.md](./REALTIME_FIXES.md) for complete details.
+
+### Critical Issue: UI Flashing "Internal Server Error" (v1.2.1)
+
+**Problem**: Game page repeatedly flashes error message then goes back to normal, making it unplayable.
+
+**Root Cause**: Any single transient error (MongoDB connection blip, SSE timeout) immediately showed full-screen error, discarding the game state.
+
+**The Fix**:
+- Error counting: Only show error after 5 consecutive failures
+- Keep last known state: Display game even during reconnection
+- Visual feedback: Yellow warning banner instead of full-screen error
+- Auto-recovery: SSE auto-reconnects, polling fallback
+- Graceful degradation: Connection issues don't break the game
+
+**Impact**: Smooth, professional experience even with network/server issues. See [REALTIME_FIXES.md](./REALTIME_FIXES.md) for implementation details.
+
 ## 📊 MongoDB Schema
 
 ```javascript
