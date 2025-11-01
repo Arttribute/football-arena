@@ -609,6 +609,27 @@ await game.save();
 
 **Impact**: Ball now moves immediately after pass/shoot actions. See [REALTIME_FIXES.md](./REALTIME_FIXES.md) for complete details.
 
+### Critical Issue: Ball Returning to Passer (v1.2.1)
+
+**Problem**: Ball moves slightly toward recipient then immediately returns to the passer. Ball never reaches its target.
+
+**Root Cause**: Passer remained within possession distance (25 pixels) and immediately reclaimed the ball on the next tick, stopping its movement.
+
+**The Fix**:
+```javascript
+// Smart possession claim - prevent passer from immediately reclaiming
+const canClaim = dist <= POSSESSION_DISTANCE &&
+                (ballSpeed <= 0.5 ||  // Ball nearly stopped, OR
+                 player.id !== lastTouchPlayerId);  // Different player (interception)
+```
+
+**Impact**:
+- Passes and shots now complete their full trajectory
+- Interceptions still work (different players can claim moving ball)
+- Natural ball stops work (anyone can claim when ball friction stops it)
+
+See [REALTIME_FIXES.md](./REALTIME_FIXES.md) for complete details.
+
 ### Critical Issue: UI Flashing "Internal Server Error" (v1.2.1)
 
 **Problem**: Game page repeatedly flashes error message then goes back to normal, making it unplayable.

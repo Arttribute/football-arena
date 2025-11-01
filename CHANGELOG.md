@@ -8,7 +8,7 @@ All notable changes to Football Arena will be documented in this file.
 
 Critical fixes for ball physics and error handling that were preventing proper gameplay.
 
-#### Issue 1: Ball Not Moving After Pass/Shoot
+#### Issue 1A: Ball Not Moving After Pass/Shoot
 
 **Problem**: Pass and shoot actions returned success with ball velocity, but the ball didn't actually move in the UI or game state.
 
@@ -17,6 +17,19 @@ Critical fixes for ball physics and error handling that were preventing proper g
 **Fix**: Removed `lastUpdate` assignments from all action functions. Only the simulation loop updates `lastUpdate` now.
 
 **Impact**: Ball now moves immediately after pass/shoot actions.
+
+#### Issue 1B: Ball Returning to Passer Immediately
+
+**Problem**: After fixing 1A, ball would move slightly toward recipient then immediately return to the passer. Ball never reached its target.
+
+**Root Cause**: Passer remained within possession distance (25 pixels) and immediately reclaimed the moving ball on the next simulation tick, stopping its velocity.
+
+**Fix**: Added smart possession claim logic that prevents the original passer from reclaiming while ball is moving fast. Only allows reclaim when ball has nearly stopped OR when a different player intercepts.
+
+**Impact**:
+- Passes and shots now complete their full trajectory
+- Interceptions still work (different players can claim moving ball)
+- Natural ball stops work (anyone can claim when friction stops the ball)
 
 #### Issue 2: UI Flashing "Internal Server Error"
 
@@ -36,12 +49,15 @@ Critical fixes for ball physics and error handling that were preventing proper g
 ### Changed
 
 - Removed `game.lastUpdate = now` from `movePlayer()`, `passBall()`, `shoot()`, and `tackle()`
+- Smart possession claim logic prevents passer from immediately reclaiming moving ball
 - Complete rewrite of game page error handling with resilience
 - Added connection status indicator to UI
 - Implemented automatic SSE reconnection with fallback polling
 
 ### Added
 
+- Ball speed check in possession claim logic (threshold: 0.5 pixels/tick)
+- Player ID check to prevent passer reclaim while ball is moving
 - Connection status banner in game UI
 - Error counting with `useRef` hooks
 - SSE reconnection logic with 5-second retry

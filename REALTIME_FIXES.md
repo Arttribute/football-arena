@@ -2,11 +2,11 @@
 
 ## Issues Fixed
 
-This document describes two critical issues with real-time game state synchronization and their fixes.
+This document describes three critical issues with real-time game state synchronization and their fixes.
 
 ---
 
-## Issue 1: Ball Not Moving After Pass/Shoot
+## Issue 1: Ball Not Moving After Pass/Shoot (Initial Fix)
 
 ### Problem Description
 
@@ -85,6 +85,119 @@ POST /api/game/{id}/pass → {success: true, ballVelocity: {vx: 6, vy: 0}}
 POST /api/game/{id}/pass → {success: true, ballVelocity: {vx: 6, vy: 0}}
 # Next simulation tick (within 50ms): Ball position updates!
 # Players see: Immediate smooth ball movement ✅
+```
+
+---
+
+## Issue 1B: Ball Returning to Passer Immediately
+
+### Problem Description
+
+After fixing Issue 1, a new problem emerged:
+1. Player passes or shoots the ball
+2. Ball moves slightly in the intended direction (2-3 pixels)
+3. **Ball immediately returns to the passer**
+4. Ball never reaches the intended target or recipient
+
+### Root Cause
+
+The possession claim logic was too aggressive:
+
+```javascript
+// OLD CODE - lib/gameLogic.ts
+for (const player of allPlayers) {
+  const dist = distance(player.position, state.ball.position);
+  if (dist <= GAME_CONFIG.POSSESSION_DISTANCE) {  // 25 pixels
+    state.ball.possessionPlayerId = player.id;   // ❌ Passer immediately reclaims!
+    state.ball.velocity = { vx: 0, vy: 0 };     // ❌ Ball stops moving!
+    player.hasBall = true;
+    break;
+  }
+}
+```
+
+**What happened:**
+1. Player passes ball with velocity `{vx: 6, vy: 0}`
+2. Ball moves 6 pixels away from passer
+3. Passer is still within 25 pixels (POSSESSION_DISTANCE)
+4. Next simulation tick: Passer reclaims possession!
+5. Ball velocity set to zero, ball stops
+6. Ball never reaches recipient
+
+### The Fix
+
+**Added smart possession claim logic:**
+
+```javascript
+// NEW CODE - lib/gameLogic.ts
+const ballSpeed = Math.sqrt(state.ball.velocity.vx ** 2 + state.ball.velocity.vy ** 2);
+const ballNearlyStoppedThreshold = 0.5;
+
+for (const player of allPlayers) {
+  const dist = distance(player.position, state.ball.position);
+
+  // Can claim possession ONLY if:
+  // 1. Ball is close enough, AND
+  // 2. Either ball has nearly stopped OR this is a different player (interception)
+  const canClaim = dist <= GAME_CONFIG.POSSESSION_DISTANCE &&
+                  (ballSpeed <= ballNearlyStoppedThreshold ||
+                   player.id !== state.ball.lastTouchPlayerId);
+
+  if (canClaim) {
+    state.ball.possessionPlayerId = player.id;
+    state.ball.velocity = { vx: 0, vy: 0 };
+    player.hasBall = true;
+    console.log(`Ball claimed by ${player.name}, was moving at speed ${ballSpeed.toFixed(2)}`);
+    break;
+  }
+}
+```
+
+**Why this works:**
+- **Passer can't reclaim**: If `player.id === state.ball.lastTouchPlayerId` AND ball is moving fast, can't claim
+- **Recipients can intercept**: Different players CAN claim even while ball is moving (interceptions!)
+- **Natural stops work**: When ball slows down (friction), anyone nearby can claim it
+- **Pass completes**: Ball travels full distance to recipient without passer reclaiming
+
+### Files Changed
+
+- `lib/gameLogic.ts` - Lines 154-184: Smart possession claim logic
+
+### Before vs After
+
+**Before:**
+```bash
+# Pass to teammate 300 pixels away
+POST /api/game/{id}/pass → {success: true, ballVelocity: {vx: 6, vy: 0}}
+
+# What happens:
+Tick 1: Ball moves 6px → Position: (player.x + 6, player.y)
+Tick 2: Passer reclaims! → Ball velocity: {vx: 0, vy: 0} ❌
+# Ball traveled only 6 pixels out of 300! ❌
+```
+
+**After:**
+```bash
+# Pass to teammate 300 pixels away
+POST /api/game/{id}/pass → {success: true, ballVelocity: {vx: 6, vy: 0}}
+
+# What happens:
+Tick 1: Ball moves 6px → Moving fast, passer can't reclaim ✅
+Tick 2: Ball moves 6px more → Still moving, passer can't reclaim ✅
+Tick 3-50: Ball continues moving...
+Tick 50: Ball near recipient → Recipient claims! ✅
+# Ball successfully traveled 300 pixels! ✅
+```
+
+### Interception Still Works
+
+```bash
+# Opponent intercepts a pass
+Tick 1-20: Ball flying toward teammate
+Tick 21: Opponent moves into ball path
+        → Ball within POSSESSION_DISTANCE of opponent
+        → Opponent is DIFFERENT player than lastTouch
+        → Opponent can claim! → Interception! ✅
 ```
 
 ---

@@ -152,10 +152,24 @@ export function simulate(state: IGameStateDoc, now: number): boolean {
       }
 
       // Check for possession claim
+      // Only claim possession if:
+      // 1. Ball velocity is very low (nearly stopped), OR
+      // 2. Ball is being claimed by a different player (interception)
+      const ballSpeed = Math.sqrt(state.ball.velocity.vx ** 2 + state.ball.velocity.vy ** 2);
+      const ballNearlyStoppedThreshold = 0.5; // Ball considered "stopped" below this speed
+
       const allPlayers = [...state.teamA, ...state.teamB];
       for (const player of allPlayers) {
         const dist = distance(player.position, state.ball.position);
-        if (dist <= GAME_CONFIG.POSSESSION_DISTANCE) {
+
+        // Can claim possession if:
+        // - Ball is close enough, AND
+        // - Either ball has nearly stopped OR this is a different player (interception)
+        const canClaim = dist <= GAME_CONFIG.POSSESSION_DISTANCE &&
+                        (ballSpeed <= ballNearlyStoppedThreshold ||
+                         player.id !== state.ball.lastTouchPlayerId);
+
+        if (canClaim) {
           state.ball.possessionPlayerId = player.id;
           state.ball.lastTouchPlayerId = player.id;
           state.ball.velocity = { vx: 0, vy: 0 };
@@ -164,6 +178,7 @@ export function simulate(state: IGameStateDoc, now: number): boolean {
           state.markModified('teamA');
           state.markModified('teamB');
           stateChanged = true;
+          console.log(`Ball claimed by ${player.name} (${player.id}), was moving at speed ${ballSpeed.toFixed(2)}`);
           break;
         }
       }
