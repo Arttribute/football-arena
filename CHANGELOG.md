@@ -2,6 +2,82 @@
 
 All notable changes to Football Arena will be documented in this file.
 
+## [1.2.2] - 2025-11-01
+
+### Added - Configurable Ball Velocity
+
+Players can now pass and shoot at different speeds based on tactical needs!
+
+#### Features
+
+- **Pass Speed Increased 2x**: From 6 to 12 pixels per simulation tick (50ms)
+- **Shoot Speed Increased 2.5x**: From 10 to 25 pixels per simulation tick (50ms)
+- **Custom Speed Per Action**: Optional `speed` parameter for pass and shoot
+- **Speed Validation**: Min/max limits ensure reasonable ball physics
+
+#### Speed Ranges
+
+- **Pass Speed**:
+  - Default: 12 pixels/tick (240 pixels/second)
+  - Min: 5 pixels/tick (100 pixels/second)
+  - Max: 20 pixels/tick (400 pixels/second)
+- **Shoot Speed**:
+  - Default: 25 pixels/tick (500 pixels/second)
+  - Min: 10 pixels/tick (200 pixels/second)
+  - Max: 40 pixels/tick (800 pixels/second)
+
+#### API Changes
+
+```javascript
+// Pass with default speed
+POST /api/game/{id}/pass
+{"playerId": "...", "targetPlayerId": "..."}
+
+// Pass with custom speed
+POST /api/game/{id}/pass
+{"playerId": "...", "targetPlayerId": "...", "speed": 15}
+
+// Shoot with default speed
+POST /api/game/{id}/shoot
+{"playerId": "..."}
+
+// Shoot with custom speed
+POST /api/game/{id}/shoot
+{"playerId": "...", "speed": 35}
+
+// Response includes speed
+{"success": true, "message": "Passed to Edison", "ballVelocity": {...}, "speed": 15}
+```
+
+#### Tactical Use Cases
+
+- **Quick Pass**: Speed 15-20 for fast ball movement between nearby teammates
+- **Safe Pass**: Speed 8-10 for controlled passes with lower interception risk
+- **Power Shot**: Speed 30-40 for long-distance shots with high velocity
+- **Placement Shot**: Speed 15-20 for accurate shots with better control
+
+### Changed
+
+- `GAME_CONFIG.PASS_SPEED`: 6 → 12 (2x faster)
+- `GAME_CONFIG.SHOOT_SPEED`: 10 → 25 (2.5x faster)
+- Added `MIN_PASS_SPEED`: 5 pixels/tick
+- Added `MAX_PASS_SPEED`: 20 pixels/tick
+- Added `MIN_SHOOT_SPEED`: 10 pixels/tick
+- Added `MAX_SHOOT_SPEED`: 40 pixels/tick
+- Pass endpoint now accepts optional `speed` parameter
+- Shoot endpoint now accepts optional `speed` parameter
+- Pass response includes `speed` field
+- Shoot response includes `speed` field
+
+### Documentation
+
+- Updated README.md with ball velocity configuration details
+- Updated API_RESPONSE_FORMATS.md with speed examples
+- Updated agent tools spec with speed parameter documentation
+- Added tactical use cases for different speeds
+
+---
+
 ## [1.2.1] - 2025-10-29
 
 ### Fixed - Real-Time Game State Issues

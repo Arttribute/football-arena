@@ -93,13 +93,14 @@ export async function movePlayer(
 }
 
 /**
- * Pass ball to teammate
+ * Pass ball to teammate with optional custom speed
  */
 export async function passBall(
   gameId: string,
   playerId: string,
-  targetPlayerId: string
-): Promise<{ success: boolean; message?: string; ballVelocity?: { vx: number; vy: number } }> {
+  targetPlayerId: string,
+  speed?: number
+): Promise<{ success: boolean; message?: string; ballVelocity?: { vx: number; vy: number }; speed?: number }> {
   await dbConnect();
 
   const game = await GameStateModel.findOne({ gameId });
@@ -129,6 +130,18 @@ export async function passBall(
     return { success: false, message: "Cannot pass to opponent" };
   }
 
+  // Validate and use custom speed if provided
+  let passSpeed: number = GAME_CONFIG.PASS_SPEED;
+  if (speed !== undefined) {
+    if (speed < GAME_CONFIG.MIN_PASS_SPEED) {
+      return { success: false, message: `Speed too low. Minimum: ${GAME_CONFIG.MIN_PASS_SPEED}` };
+    }
+    if (speed > GAME_CONFIG.MAX_PASS_SPEED) {
+      return { success: false, message: `Speed too high. Maximum: ${GAME_CONFIG.MAX_PASS_SPEED}` };
+    }
+    passSpeed = speed;
+  }
+
   // Release ball and set velocity towards target
   const dx = targetPlayer.position.x - player.position.x;
   const dy = targetPlayer.position.y - player.position.y;
@@ -136,8 +149,8 @@ export async function passBall(
 
   if (dist > 0) {
     game.ball.velocity = {
-      vx: (dx / dist) * GAME_CONFIG.PASS_SPEED,
-      vy: (dy / dist) * GAME_CONFIG.PASS_SPEED,
+      vx: (dx / dist) * passSpeed,
+      vy: (dy / dist) * passSpeed,
     };
   }
 
@@ -157,22 +170,24 @@ export async function passBall(
 
   await game.save();
 
-  console.log(`Player ${playerId} passed to ${targetPlayerId}`);
+  console.log(`Player ${playerId} passed to ${targetPlayerId} at speed ${passSpeed}`);
 
   return {
     success: true,
     message: `Passed to ${targetPlayer.name}`,
-    ballVelocity: game.ball.velocity
+    ballVelocity: game.ball.velocity,
+    speed: passSpeed
   };
 }
 
 /**
- * Shoot at goal
+ * Shoot at goal with optional custom speed
  */
 export async function shoot(
   gameId: string,
-  playerId: string
-): Promise<{ success: boolean; message?: string; ballVelocity?: { vx: number; vy: number } }> {
+  playerId: string,
+  speed?: number
+): Promise<{ success: boolean; message?: string; ballVelocity?: { vx: number; vy: number }; speed?: number }> {
   await dbConnect();
 
   const game = await GameStateModel.findOne({ gameId });
@@ -195,6 +210,18 @@ export async function shoot(
     return { success: false, message: "Shoot cooldown active" };
   }
 
+  // Validate and use custom speed if provided
+  let shootSpeed: number = GAME_CONFIG.SHOOT_SPEED;
+  if (speed !== undefined) {
+    if (speed < GAME_CONFIG.MIN_SHOOT_SPEED) {
+      return { success: false, message: `Speed too low. Minimum: ${GAME_CONFIG.MIN_SHOOT_SPEED}` };
+    }
+    if (speed > GAME_CONFIG.MAX_SHOOT_SPEED) {
+      return { success: false, message: `Speed too high. Maximum: ${GAME_CONFIG.MAX_SHOOT_SPEED}` };
+    }
+    shootSpeed = speed;
+  }
+
   // Determine target goal
   const targetGoalX = player.team === 'A' ? GAME_CONFIG.FIELD_WIDTH : 0;
   const targetGoalY = GAME_CONFIG.FIELD_HEIGHT / 2;
@@ -206,8 +233,8 @@ export async function shoot(
 
   if (dist > 0) {
     game.ball.velocity = {
-      vx: (dx / dist) * GAME_CONFIG.SHOOT_SPEED,
-      vy: (dy / dist) * GAME_CONFIG.SHOOT_SPEED,
+      vx: (dx / dist) * shootSpeed,
+      vy: (dy / dist) * shootSpeed,
     };
   }
 
@@ -226,12 +253,13 @@ export async function shoot(
 
   await game.save();
 
-  console.log(`Player ${playerId} shot towards goal`);
+  console.log(`Player ${playerId} shot towards goal at speed ${shootSpeed}`);
 
   return {
     success: true,
     message: `Shot towards goal!`,
-    ballVelocity: game.ball.velocity
+    ballVelocity: game.ball.velocity,
+    speed: shootSpeed
   };
 }
 

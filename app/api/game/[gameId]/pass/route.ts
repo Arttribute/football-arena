@@ -8,7 +8,7 @@ export async function POST(
   try {
     const { gameId } = await params;
     const body = await request.json();
-    const { playerId, targetPlayerId } = body;
+    const { playerId, targetPlayerId, speed } = body;
 
     if (!playerId || !targetPlayerId) {
       return NextResponse.json(
@@ -17,8 +17,8 @@ export async function POST(
       );
     }
 
-    const result = await passBall(gameId, playerId, targetPlayerId);
-    
+    const result = await passBall(gameId, playerId, targetPlayerId, speed);
+
     if (result.success) {
       return NextResponse.json(result);
     } else {

@@ -456,3 +456,155 @@ See source code:
 - Verify `hasBall` is true
 - Check `possessionPlayerId` matches
 - Ensure ball isn't in flight (has velocity)
+
+---
+
+## Ball Velocity Configuration (v1.2.2+)
+
+### Overview
+
+Similar to player movement speed, ball velocity is now configurable for passes and shots. This allows for tactical variation in how the ball travels.
+
+### Default Ball Speeds
+
+**v1.2.2 - Increased Ball Velocities:**
+```typescript
+GAME_CONFIG.PASS_SPEED = 12       // Default pass: pixels per simulation step (2x faster)
+GAME_CONFIG.MIN_PASS_SPEED = 5    // Minimum pass speed
+GAME_CONFIG.MAX_PASS_SPEED = 20   // Maximum pass speed
+
+GAME_CONFIG.SHOOT_SPEED = 25      // Default shot: pixels per simulation step (2.5x faster)
+GAME_CONFIG.MIN_SHOOT_SPEED = 10  // Minimum shot speed
+GAME_CONFIG.MAX_SHOOT_SPEED = 40  // Maximum shot speed
+```
+
+### Pass Speed Configuration
+
+**Default Pass:**
+```javascript
+await pass(gameId, playerId, targetPlayerId);
+// Ball travels at 12 pixels/tick = 240 pixels/second
+```
+
+**Custom Pass Speed:**
+```javascript
+// Quick pass
+await pass(gameId, playerId, targetPlayerId, 18);
+// Ball travels at 18 pixels/tick = 360 pixels/second
+
+// Safe, controlled pass
+await pass(gameId, playerId, targetPlayerId, 8);
+// Ball travels at 8 pixels/tick = 160 pixels/second
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Passed to PlayerName",
+  "ballVelocity": { "vx": 15.2, "vy": 6.8 },
+  "speed": 18
+}
+```
+
+### Shoot Speed Configuration
+
+**Default Shot:**
+```javascript
+await shoot(gameId, playerId);
+// Ball travels at 25 pixels/tick = 500 pixels/second
+```
+
+**Custom Shot Speed:**
+```javascript
+// Power shot
+await shoot(gameId, playerId, 35);
+// Ball travels at 35 pixels/tick = 700 pixels/second
+
+// Placement shot
+await shoot(gameId, playerId, 18);
+// Ball travels at 18 pixels/tick = 360 pixels/second
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Shot towards goal!",
+  "ballVelocity": { "vx": 33.5, "vy": 1.2 },
+  "speed": 35
+}
+```
+
+### Tactical Uses
+
+**Pass Strategies:**
+- **Quick Pass** (`speed: 15-20`): Fast ball movement, harder to intercept
+- **Safe Pass** (`speed: 8-10`): Controlled, accurate passes with lower interception risk
+- **Short Pass** (`speed: 5-7`): Very close teammates, minimal travel time
+
+**Shot Strategies:**
+- **Power Shot** (`speed: 30-40`): Long-distance shots with high velocity
+- **Placement Shot** (`speed: 15-20`): Accurate shots with better control
+- **Chip Shot** (`speed: 10-15`): Controlled finesse shots over defenders
+
+### Ball Physics
+
+**Friction:**
+```typescript
+GAME_CONFIG.BALL_FRICTION = 0.95  // Velocity multiplier per tick
+```
+
+- Ball velocity decreases by 5% every simulation tick
+- Eventually stops due to friction
+- Pass at 12 pixels/tick slows to ~6 after ~14 ticks (0.7 seconds)
+- Shot at 25 pixels/tick slows to ~12 after ~14 ticks (0.7 seconds)
+
+**Possession Claim:**
+- Ball can be claimed when within 25 pixels (POSSESSION_DISTANCE)
+- Ball moving faster than 0.5 pixels/tick cannot be reclaimed by passer
+- Different players can intercept moving ball
+- When ball nearly stops, any nearby player can claim it
+
+### Speed Validation
+
+**Pass Speed Limits:**
+```json
+// Too slow
+{ "speed": 3, "success": false, "message": "Speed too low. Minimum: 5" }
+
+// Too fast
+{ "speed": 25, "success": false, "message": "Speed too high. Maximum: 20" }
+
+// Valid
+{ "speed": 12, "success": true, ... }
+```
+
+**Shoot Speed Limits:**
+```json
+// Too slow
+{ "speed": 8, "success": false, "message": "Speed too low. Minimum: 10" }
+
+// Too fast
+{ "speed": 45, "success": false, "message": "Speed too high. Maximum: 40" }
+
+// Valid
+{ "speed": 25, "success": true, ... }
+```
+
+### Comparison: Old vs New Ball Speeds
+
+| Action | v1.2.1 Speed | v1.2.2 Speed | Improvement |
+|--------|--------------|--------------|-------------|
+| Pass   | 6 pixels/tick | 12 pixels/tick | 2x faster |
+| Shoot  | 10 pixels/tick | 25 pixels/tick | 2.5x faster |
+| Pass range | Fixed | 5-20 configurable | Tactical variation |
+| Shoot range | Fixed | 10-40 configurable | Tactical variation |
+
+### Implementation Files
+
+- Ball velocity config: `types/game.ts` (GAME_CONFIG)
+- Pass function: `lib/gameActions.ts` (passBall with speed param)
+- Shoot function: `lib/gameActions.ts` (shoot with speed param)
+- Ball physics: `lib/gameLogic.ts` (friction and possession logic)
+- API endpoints: `app/api/game/[gameId]/pass/route.ts` and `shoot/route.ts`

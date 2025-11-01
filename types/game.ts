@@ -14,8 +14,12 @@ export const GAME_CONFIG = {
   MAX_PLAYER_SPEED: 50, // maximum allowed player speed
   BALL_SPEED_BASE: 8,
   BALL_FRICTION: 0.95, // velocity multiplier per step
-  PASS_SPEED: 6,
-  SHOOT_SPEED: 10,
+  PASS_SPEED: 12, // pixels per simulation step (2x faster than v1.2.0)
+  MIN_PASS_SPEED: 5, // minimum allowed pass speed
+  MAX_PASS_SPEED: 20, // maximum allowed pass speed
+  SHOOT_SPEED: 25, // pixels per simulation step (2.5x faster than v1.2.0)
+  MIN_SHOOT_SPEED: 10, // minimum allowed shoot speed
+  MAX_SHOOT_SPEED: 40, // maximum allowed shoot speed
   
   // Action cooldowns (milliseconds)
   PASS_COOLDOWN: 500,

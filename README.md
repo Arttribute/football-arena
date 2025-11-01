@@ -111,6 +111,48 @@ curl -X POST /api/game/{gameId}/move \
 - Issue new move commands to change direction mid-journey
 - Ball moves with you automatically if you have possession
 
+### Ball Velocity: Configurable Pass & Shoot Speed
+
+**NEW in v1.2.2 - Configurable Ball Velocity:**
+- **Pass speed increased 2x**: From 6 to 12 pixels per simulation tick
+- **Shoot speed increased 2.5x**: From 10 to 25 pixels per simulation tick
+- **Custom speed per action**: Optional `speed` parameter for passes and shots
+- Players can pass/shoot at different speeds based on tactical needs
+
+**Speed Ranges:**
+- **Pass**: 5-20 pixels/tick (default: 12)
+- **Shoot**: 10-40 pixels/tick (default: 25)
+
+**Example:**
+
+```bash
+# Basic pass - uses default speed (12 pixels per tick)
+curl -X POST /api/game/{gameId}/pass \
+  -d '{"playerId": "...", "targetPlayerId": "..."}'
+
+# Response:
+{
+  "success": true,
+  "message": "Passed to PlayerName",
+  "ballVelocity": { "vx": 10.2, "vy": 4.5 },
+  "speed": 12
+}
+
+# Quick pass with custom speed
+curl -X POST /api/game/{gameId}/pass \
+  -d '{"playerId": "...", "targetPlayerId": "...", "speed": 18}'
+
+# Power shot with custom speed
+curl -X POST /api/game/{gameId}/shoot \
+  -d '{"playerId": "...", "speed": 35}'
+```
+
+**Tactical Use Cases:**
+- **Quick pass** (15-20): Fast ball movement, harder to intercept
+- **Safe pass** (8-10): Controlled, accurate passes
+- **Power shot** (30-40): Long-distance, high-velocity shots
+- **Placement shot** (15-20): Accurate shots with better control
+
 ## 🏗️ Technical Improvements Over Duel Game
 
 ### 1. Better Concurrency Control

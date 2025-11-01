@@ -76,11 +76,14 @@ All action endpoints now return detailed information about what happened, not ju
 
 **Endpoint**: `POST /api/game/{gameId}/pass`
 
+**Behavior**: Releases the ball with velocity towards target teammate. Ball travels at specified speed until friction stops it or another player intercepts.
+
 **Request Body**:
 ```json
 {
   "playerId": "player-uuid",
-  "targetPlayerId": "teammate-uuid"
+  "targetPlayerId": "teammate-uuid",
+  "speed": 15  // Optional: custom pass speed (5-20, default: 12)
 }
 ```
 
@@ -90,9 +93,10 @@ All action endpoints now return detailed information about what happened, not ju
   "success": true,
   "message": "Passed to PlayerName",
   "ballVelocity": {
-    "vx": 4.2,
-    "vy": 1.8
-  }
+    "vx": 10.2,
+    "vy": 4.5
+  },
+  "speed": 15
 }
 ```
 
@@ -102,12 +106,21 @@ All action endpoints now return detailed information about what happened, not ju
 { "success": false, "message": "Target player not found" }
 { "success": false, "message": "Cannot pass to opponent" }
 { "success": false, "message": "Pass cooldown active" }
+{ "success": false, "message": "Speed too low. Minimum: 5" }
+{ "success": false, "message": "Speed too high. Maximum: 20" }
 ```
 
 **Notes**:
-- Ball velocity indicates the direction and speed of the pass
-- Pass speed: 6 pixels per step
+- `ballVelocity`: Direction and speed of the pass
+- `speed`: Pass speed used (pixels per simulation tick)
+- **Default speed**: 12 pixels per tick = 240 pixels per second (2x faster than v1.2.1)
+- **Speed range**: 5 (min) to 20 (max) pixels per tick
 - Cooldown: 500ms between passes
+
+**Speed Examples**:
+- Quick pass: `speed: 15-20` (300-400 pixels/sec) for fast ball movement
+- Safe pass: `speed: 8-10` (160-200 pixels/sec) for controlled, accurate passes
+- Short pass: `speed: 5-7` (100-140 pixels/sec) for very close teammates
 
 ---
 
@@ -115,10 +128,13 @@ All action endpoints now return detailed information about what happened, not ju
 
 **Endpoint**: `POST /api/game/{gameId}/shoot`
 
+**Behavior**: Releases the ball with high velocity towards opponent's goal. Ball automatically aims at goal center and travels at specified speed.
+
 **Request Body**:
 ```json
 {
-  "playerId": "player-uuid"
+  "playerId": "player-uuid",
+  "speed": 35  // Optional: custom shot speed (10-40, default: 25)
 }
 ```
 
@@ -128,9 +144,10 @@ All action endpoints now return detailed information about what happened, not ju
   "success": true,
   "message": "Shot towards goal!",
   "ballVelocity": {
-    "vx": 8.5,
-    "vy": 0.2
-  }
+    "vx": 23.5,
+    "vy": 0.8
+  },
+  "speed": 35
 }
 ```
 
@@ -139,12 +156,22 @@ All action endpoints now return detailed information about what happened, not ju
 { "success": false, "message": "Player doesn't have the ball" }
 { "success": false, "message": "Shoot cooldown active" }
 { "success": false, "message": "Game not in progress" }
+{ "success": false, "message": "Speed too low. Minimum: 10" }
+{ "success": false, "message": "Speed too high. Maximum: 40" }
 ```
 
 **Notes**:
-- Ball automatically aims at opponent's goal
-- Shoot speed: 10 pixels per step (fastest action)
+- Ball automatically aims at opponent's goal center
+- `ballVelocity`: Direction and speed of the shot
+- `speed`: Shot speed used (pixels per simulation tick)
+- **Default speed**: 25 pixels per tick = 500 pixels per second (2.5x faster than v1.2.1)
+- **Speed range**: 10 (min) to 40 (max) pixels per tick
 - Cooldown: 1000ms between shots
+
+**Speed Examples**:
+- Power shot: `speed: 30-40` (600-800 pixels/sec) for long-distance, high-velocity shots
+- Placement shot: `speed: 15-20` (300-400 pixels/sec) for accurate shots with better control
+- Chip shot: `speed: 10-15` (200-300 pixels/sec) for controlled finesse shots
 
 ---
 

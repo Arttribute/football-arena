@@ -98,7 +98,7 @@ export async function GET(
     {
       name: "pass",
       description:
-        "Pass the ball to a teammate. You must have possession of the ball.",
+        "Pass the ball to a teammate. You must have possession of the ball. Optionally set a custom ball speed (min: 5, max: 20, default: 12 pixels per 50ms tick).",
       apiSpec: {
         path: `/api/game/${gameId}/pass`,
         method: "POST",
@@ -117,13 +117,19 @@ export async function GET(
             type: "string",
             description: "ID of the teammate to pass to",
           },
+          speed: {
+            type: "number",
+            description: "Optional custom pass speed in pixels per simulation step (min: 5, max: 20, default: 12). Higher values = faster pass.",
+            minimum: 5,
+            maximum: 20,
+          },
         },
       },
     },
     {
       name: "shoot",
       description:
-        "Shoot the ball towards the opponent's goal. You must have possession of the ball.",
+        "Shoot the ball towards the opponent's goal. You must have possession of the ball. Optionally set a custom shot speed (min: 10, max: 40, default: 25 pixels per 50ms tick).",
       apiSpec: {
         path: `/api/game/${gameId}/shoot`,
         method: "POST",
@@ -137,6 +143,12 @@ export async function GET(
           playerId: {
             type: "string",
             description: "Your player ID",
+          },
+          speed: {
+            type: "number",
+            description: "Optional custom shot speed in pixels per simulation step (min: 10, max: 40, default: 25). Higher values = faster shot.",
+            minimum: 10,
+            maximum: 40,
           },
         },
       },
