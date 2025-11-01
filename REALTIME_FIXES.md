@@ -250,13 +250,14 @@ Common causes of transient errors:
 
 ### The Fix
 
-**Implemented graceful degradation with retry logic:**
+**Implemented graceful degradation with retry logic and thresholds:**
 
 ```javascript
-// NEW CODE - app/game/[gameId]/page.tsx
+// NEW CODE (v1.2.1+) - app/game/[gameId]/page.tsx
 const errorCountRef = useRef<number>(0);
 const successCountRef = useRef<number>(0);
-const MAX_CONSECUTIVE_ERRORS = 5;
+const MAX_CONSECUTIVE_ERRORS = 5;        // Full error page threshold
+const WARNING_BANNER_THRESHOLD = 3;      // Warning banner threshold
 
 const fetchGameState = async () => {
   try {
@@ -265,19 +266,24 @@ const fetchGameState = async () => {
 
     if (data.success && data.gameState) {
       setGameState(data.gameState);
-      errorCountRef.current = 0;  // ✅ Reset error count
+      errorCountRef.current = 0;        // ✅ Reset error count
       successCountRef.current++;
-      setIsConnected(true);
+      setIsConnected(true);              // ✅ Clear warning banner
 
       if (successCountRef.current >= 2) {
-        setError(null);  // ✅ Clear transient errors
+        setError(null);                  // ✅ Clear full error state
       }
     }
   } catch (err) {
-    errorCountRef.current++;  // ✅ Track consecutive failures
-    setIsConnected(false);    // ✅ Show warning, not full error
+    errorCountRef.current++;             // ✅ Track consecutive failures
+    successCountRef.current = 0;         // ✅ Reset success count
 
-    // ✅ Only show error after 5 consecutive failures
+    // ✅ Only show warning banner after 3 consecutive failures
+    if (errorCountRef.current >= WARNING_BANNER_THRESHOLD) {
+      setIsConnected(false);
+    }
+
+    // ✅ Only show full error page after 5 consecutive failures
     if (errorCountRef.current >= MAX_CONSECUTIVE_ERRORS) {
       setError(err.message);
     }
@@ -287,10 +293,12 @@ const fetchGameState = async () => {
 // ... SSE with automatic reconnection ...
 eventSource.addEventListener("error", () => {
   eventSource?.close();
-  setIsConnected(false);  // ✅ Show warning banner
+  // ✅ Don't immediately show warning - let polling handle it
+  // If polling succeeds, no banner. If polling fails 3+ times, banner shows.
 
   // ✅ Fall back to polling
   fallbackInterval = setInterval(fetchGameState, 1000);
+  fetchGameState();  // Immediate fetch
 
   // ✅ Try to reconnect SSE after 5 seconds
   setTimeout(() => {
@@ -315,12 +323,16 @@ if (error && !gameState) {  // ✅ Only show error if NO state at all
 
 ### Key Improvements
 
-1. **Error Counting**: Only show full error after 5 consecutive failures
+1. **Tiered Error Thresholds**:
+   - 3 consecutive errors → Show warning banner
+   - 5 consecutive errors → Show full error page
+   - 1-2 errors → Silently retry, game continues normally
 2. **Last Known State**: Keep displaying game even during reconnection
-3. **Visual Feedback**: Yellow banner instead of full-screen error
+3. **Visual Feedback**: Yellow banner for persistent issues, not transient blips
 4. **Auto Recovery**: SSE auto-reconnects after 5 seconds
 5. **Graceful Fallback**: SSE error → Polling → Retry SSE
 6. **Success Tracking**: 2 successful fetches clear any error state
+7. **Smart SSE Error Handling**: SSE errors don't immediately show banner - let polling succeed first
 
 ### Files Changed
 
@@ -338,12 +350,15 @@ if (error && !gameState) {  // ✅ Only show error if NO state at all
 Normal game → Single error → FULL SCREEN ERROR → User frustrated
 ```
 
-**After:**
+**After (v1.2.1 Improved):**
 ```
-Normal game → Transient error → Small warning banner → Auto-recovery → Normal game
-                                  ↓
-                          Game continues playing!
+Normal game → Single error → [Silent retry] → Success → Game continues ✅
+Normal game → 2 errors → [Silent retry] → Success → Game continues ✅
+Normal game → 3 errors → Small warning banner → Auto-recovery → Game continues ✅
+Normal game → 5+ errors → Full error page (genuine connection failure) ❌
 ```
+
+**Key Insight**: Single transient errors (1-2) are completely invisible to users. The game just works!
 
 ---
 

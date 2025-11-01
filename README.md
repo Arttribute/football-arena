@@ -636,14 +636,19 @@ See [REALTIME_FIXES.md](./REALTIME_FIXES.md) for complete details.
 
 **Root Cause**: Any single transient error (MongoDB connection blip, SSE timeout) immediately showed full-screen error, discarding the game state.
 
-**The Fix**:
-- Error counting: Only show error after 5 consecutive failures
-- Keep last known state: Display game even during reconnection
-- Visual feedback: Yellow warning banner instead of full-screen error
-- Auto-recovery: SSE auto-reconnects, polling fallback
-- Graceful degradation: Connection issues don't break the game
+**The Fix - Tiered Error Thresholds**:
+- 1-2 errors: Silent retry, game continues normally (invisible to users!)
+- 3 consecutive errors: Show yellow warning banner
+- 5 consecutive errors: Show full error page (genuine failure)
+- Success resets counters immediately
+- SSE errors fall back to polling without showing banner
 
-**Impact**: Smooth, professional experience even with network/server issues. See [REALTIME_FIXES.md](./REALTIME_FIXES.md) for implementation details.
+**Impact**:
+- Single/transient errors are completely invisible - game just works
+- Only persistent connection issues show warnings
+- Smooth, professional experience even with network/server issues
+
+See [REALTIME_FIXES.md](./REALTIME_FIXES.md) for implementation details.
 
 ## 📊 MongoDB Schema
 

@@ -37,14 +37,19 @@ Critical fixes for ball physics and error handling that were preventing proper g
 
 **Root Cause**: Any single transient error (MongoDB connection blip, SSE timeout) immediately showed full-screen error and discarded game state.
 
-**Fix**: Implemented graceful degradation:
-- Error counting: Only show error after 5 consecutive failures
-- Last known state: Keep displaying game during reconnection
-- Visual feedback: Yellow warning banner instead of full-screen error
-- Auto-recovery: SSE auto-reconnects after 5 seconds
-- Polling fallback: Switches to polling on SSE errors
+**Fix**: Implemented tiered error thresholds with graceful degradation:
+- **1-2 errors**: Silent retry, game continues normally (invisible to users!)
+- **3 consecutive errors**: Show yellow warning banner
+- **5 consecutive errors**: Show full error page (genuine connection failure)
+- **Success resets**: Any successful fetch resets error counters
+- **Smart SSE handling**: SSE errors fall back to polling without showing banner
+- **Last known state**: Keep displaying game during all reconnection attempts
+- **Auto-recovery**: SSE auto-reconnects after 5 seconds
 
-**Impact**: Smooth, professional experience even with network/server issues.
+**Impact**:
+- Single/transient errors are completely invisible to users
+- Only persistent connection issues show warnings
+- Smooth, professional experience even with network/server issues
 
 ### Changed
 
@@ -58,10 +63,14 @@ Critical fixes for ball physics and error handling that were preventing proper g
 
 - Ball speed check in possession claim logic (threshold: 0.5 pixels/tick)
 - Player ID check to prevent passer reclaim while ball is moving
-- Connection status banner in game UI
+- Tiered error threshold system:
+  - `WARNING_BANNER_THRESHOLD = 3` (show banner after 3 consecutive errors)
+  - `MAX_CONSECUTIVE_ERRORS = 5` (show full error page after 5 consecutive errors)
+- Connection status banner in game UI (only shown for persistent issues)
 - Error counting with `useRef` hooks
+- Success counter to clear error states
 - SSE reconnection logic with 5-second retry
-- Graceful error recovery without breaking UI
+- Silent error recovery for transient issues
 - Comprehensive documentation in `REALTIME_FIXES.md`
 
 ### Documentation
